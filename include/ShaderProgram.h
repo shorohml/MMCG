@@ -1,9 +1,10 @@
 // Taken from https://github.com/v-san/ogl-samples
 
 #pragma once
-#include "common.h"
 
 #include <unordered_map>
+
+#include "common.h"
 
 class ShaderProgram {
 public:
