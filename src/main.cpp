@@ -1,10 +1,10 @@
 // Initial version taken from https://github.com/v-san/ogl-samples
 
 #include "ShaderProgram.h"
-#define STB_IMAGE_IMPLEMENTATION
 #include "nlohmann/json.hpp"
-#include "stb_image.h"
+#include "texture.h"
 
+#include <Eigen/Dense>
 #include <GLFW/glfw3.h>
 #include <random>
 
@@ -133,54 +133,13 @@ int main()
         GL_CHECK_ERRORS;
     }
 
-    //generate texture
-    unsigned int texture1;
-    unsigned int texture2;
-    stbi_set_flip_vertically_on_load(true);
-    {
-        glGenTextures(1, &texture1);
-        glBindTexture(GL_TEXTURE_2D, texture1);
-        // set the texture wrapping/filtering options (on the currently bound texture object)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        //load image for texture
-        int width, height, nrChannels;
-        std::string path = std::string(config["dataPath"]) + "/textures/container.jpg";
-        unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
-        GLint format = nrChannels == 4 ? GL_RGBA : GL_RGB;
-
-        //assign texture data
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        //free image data
-        stbi_image_free(data);
-    }
-    {
-        glGenTextures(1, &texture2);
-        glBindTexture(GL_TEXTURE_2D, texture2);
-        // set the texture wrapping/filtering options (on the currently bound texture object)
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        //load image for texture
-        int width, height, nrChannels;
-        std::string path = std::string(config["dataPath"]) + "/textures/awesomeface.png";
-        unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
-        GLint format = nrChannels == 4 ? GL_RGBA : GL_RGB;
-
-        //assign texture data
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        //free image data
-        stbi_image_free(data);
-    }
+    //generate textures
+    std::string path1 = std::string(config["dataPath"]) + "/textures/container.jpg";
+    std::string path2 = std::string(config["dataPath"]) + "/textures/awesomeface.png";
+    Texture texture1(path1);
+    Texture texture2(path2);
+    texture1.glLoad();
+    texture2.glLoad();
 
     //цикл обработки сообщений и отрисовки сцены каждый кадр
     while (!glfwWindowShouldClose(window)) {
@@ -198,9 +157,9 @@ int main()
         glBindVertexArray(g_vertexArrayObject);
 
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture1);
+        texture1.glBind();
         glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture2);
+        texture2.glBind();
 
         program.SetUniform("texture1", 0);
         program.SetUniform("texture2", 1);
@@ -218,6 +177,8 @@ int main()
     glDeleteBuffers(1, &g_vertexBufferObject);
     glDeleteBuffers(1, &g_vertexArrayObject);
     glDeleteBuffers(1, &g_elementBufferObject);
+    texture1.glFree();
+    texture2.glFree();
 
     glfwTerminate();
     return 0;
