@@ -14,20 +14,20 @@ Texture::pointerType Texture::loadImg(const std::string& path)
         stbi_image_free);
 }
 
-void Texture::glBind() const
+void Texture::GLBind() const
 {
     if (textureID) {
         glBindTexture(GL_TEXTURE_2D, textureID);
     }
 }
 
-void Texture::glLoad()
+void Texture::GLLoad()
 {
     if (textureID) {
-        release();
+        Release();
     }
     glGenTextures(1, &textureID);
-    glBind();
+    GLBind();
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -54,7 +54,7 @@ void Texture::glLoad()
     glGenerateMipmap(GL_TEXTURE_2D);
 }
 
-void Texture::release()
+void Texture::Release()
 {
     glDeleteTextures(1, &textureID);
     textureID = 0;

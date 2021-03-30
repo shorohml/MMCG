@@ -1,3 +1,4 @@
+//Application class
 #pragma once
 
 #include "Camera.h"
@@ -34,12 +35,12 @@ public:
 
     App& operator=(const App& other) = delete;
 
-    int run();
+    int Run();
 
 private:
     //TODO: reimplement this
     //Possible option:
-    //1. Define Keybord, Mouse etc classes with parts of this state
+    //1. Define Keybord, Mouse etc classes with parts of this state and corresponding callbacks
     //2. Unify them into one class with getters
     //3. Put instance of this class here
     AppState state; //we need to separate this into struct because of C-style GLFW callbacks

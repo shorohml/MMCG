@@ -132,8 +132,8 @@ void App::loadModels()
     std::string path2 = std::string(config["dataPath"]) + "/textures/awesomeface.png";
     textures.push_back(std::make_unique<Texture>(path1));
     textures.push_back(std::make_unique<Texture>(path2));
-    textures[0]->glLoad();
-    textures[1]->glLoad();
+    textures[0]->GLLoad();
+    textures[1]->GLLoad();
 }
 
 void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int action, int /* mode */)
@@ -278,15 +278,15 @@ void App::mainLoop()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        glUseProgram(program.programObj); //StartUseShader
+        glUseProgram(program.ProgramObj); //StartUseShader
 
         glBindVertexArray(g_vertexArrayObject);
 
         //activate textures
         glActiveTexture(GL_TEXTURE0);
-        textures[0]->glBind();
+        textures[0]->GLBind();
         glActiveTexture(GL_TEXTURE1);
-        textures[1]->glBind();
+        textures[1]->GLBind();
         program.SetUniform("texture1", 0);
         program.SetUniform("texture2", 1);
 
@@ -324,12 +324,12 @@ void App::release()
     glDeleteBuffers(1, &g_vertexBufferObject);
     glDeleteBuffers(1, &g_vertexArrayObject);
     for (std::unique_ptr<Texture>& texture : textures) {
-        texture->release();
+        texture->Release();
     }
     glfwTerminate();
 }
 
-int App::run()
+int App::Run()
 {
     int result = createWindow();
     if (result != 0) {

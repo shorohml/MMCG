@@ -1,4 +1,4 @@
-// Texture class (loads image from disk and creates OpenGl texture)
+//Texture class (loads image from disk and creates OpenGl texture)
 #pragma once
 
 #include "common.h"
@@ -27,13 +27,13 @@ public:
 
     Texture& operator=(const Texture& other) = delete;
 
-    void glBind() const;
+    void GLBind() const;
 
-    void glLoad();
+    void GLLoad();
 
-    void release();
+    void Release();
 
-    GLuint getTextureID() const
+    GLuint GetTextureID() const
     {
         return textureID;
     }

@@ -3,6 +3,6 @@
 int main()
 {
     App app("../config.json");
-    int result = app.run();
+    int result = app.Run();
     return result;
 }

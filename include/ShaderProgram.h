@@ -1,4 +1,4 @@
-// ShaderProgram class from https://github.com/v-san/ogl-samples
+//ShaderProgram class from https://github.com/v-san/ogl-samples
 #pragma once
 
 #include <unordered_map>
@@ -9,7 +9,7 @@
 class ShaderProgram {
 public:
     ShaderProgram()
-        : programObj(-1) {};
+        : ProgramObj(-1) {};
 
     ShaderProgram(const std::unordered_map<GLenum, std::string>& inputShaders);
 
@@ -21,7 +21,7 @@ public:
 
     virtual void StopUseShader() const;
 
-    GLuint GetProgram() const { return programObj; }
+    GLuint GetProgram() const { return ProgramObj; }
 
     bool reLink();
 
@@ -35,7 +35,7 @@ public:
 
     void SetUniform(const std::string& location, const glm::mat4 &value) const;
 
-    GLuint programObj;
+    GLuint ProgramObj;
 
 private:
     static GLuint LoadShaderObject(GLenum type, const std::string& filename);
