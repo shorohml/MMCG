@@ -70,7 +70,8 @@ set(SOURCE_FILES
     src/ShaderProgram.cpp
     src/glError.cpp
     src/Texture.cpp
-    src/Camera.cpp)
+    src/Camera.cpp
+    src/App.cpp)
 
 add_executable(main ${SOURCE_FILES})
 
@@ -89,7 +90,7 @@ target_link_libraries(main
     ${OPENGL_gl_LIBRARY}
     glfw)
 
-target_compile_options(main PRIVATE -Werror -Wall -Wextra -Wno-unused-parameter)
+target_compile_options(main PRIVATE -Werror -Wall -Wextra)
 
 #---------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------

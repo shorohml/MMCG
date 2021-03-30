@@ -24,7 +24,7 @@ void Texture::glBind() const
 void Texture::glLoad()
 {
     if (textureID) {
-        Release();
+        release();
     }
     glGenTextures(1, &textureID);
     glBind();
@@ -54,7 +54,7 @@ void Texture::glLoad()
     glGenerateMipmap(GL_TEXTURE_2D);
 }
 
-void Texture::Release()
+void Texture::release()
 {
     glDeleteTextures(1, &textureID);
     textureID = 0;

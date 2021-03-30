@@ -23,8 +23,6 @@ public:
     {
     }
 
-    virtual ~Texture() {};
-
     Texture(const Texture&) = delete;
 
     Texture& operator=(const Texture& other) = delete;
@@ -33,7 +31,7 @@ public:
 
     void glLoad();
 
-    void Release();
+    void release();
 
     GLuint getTextureID() const
     {
