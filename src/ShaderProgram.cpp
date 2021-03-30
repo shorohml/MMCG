@@ -1,5 +1,4 @@
-// Taken from https://github.com/v-san/ogl-samples
-
+#include <glm/gtc/type_ptr.hpp>
 #include "ShaderProgram.h"
 
 ShaderProgram::ShaderProgram(const std::unordered_map<GLenum, std::string>& inputShaders)
@@ -188,4 +187,14 @@ void ShaderProgram::SetUniform(const std::string& location, double value) const
         return;
     }
     glUniform1d(uniformLocation, value);
+}
+
+void ShaderProgram::SetUniform(const std::string& location, const glm::mat4 &value) const
+{
+    GLint uniformLocation = glGetUniformLocation(programObj, location.c_str());
+    if (uniformLocation == -1) {
+        std::cerr << "Uniform  " << location << " not found" << std::endl;
+        return;
+    }
+    glUniformMatrix4fv(uniformLocation, 1, GL_FALSE, glm::value_ptr(value));
 }

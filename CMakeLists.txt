@@ -47,6 +47,17 @@ ExternalProject_Add(
 ExternalProject_Get_Property(eigen SOURCE_DIR)
 set(EIGEN3_INCLUDE_DIRS ${SOURCE_DIR})
 
+#downlaod eigen
+ExternalProject_Add(
+    glm
+    URL https://github.com/g-truc/glm/releases/download/0.9.9.8/glm-0.9.9.8.zip
+    INSTALL_COMMAND ""
+    BUILD_COMMAND ""
+    CONFIGURE_COMMAND ""
+)
+ExternalProject_Get_Property(glm SOURCE_DIR)
+set(GLM_INCLUDE_DIRS ${SOURCE_DIR})
+
 #---------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------
 # executable
@@ -58,7 +69,8 @@ set(SOURCE_FILES
     src/main.cpp
     src/ShaderProgram.cpp
     src/glError.cpp
-    src/texture.cpp)
+    src/Texture.cpp
+    src/Camera.cpp)
 
 add_executable(main ${SOURCE_FILES})
 
@@ -69,6 +81,7 @@ target_include_directories(main
     ${OPENGL_INCLUDE_DIR}
     ${EIGEN3_INCLUDE_DIRS}
     ${JSON_INCLUDE_DIRS}
+    ${GLM_INCLUDE_DIRS}
     include)
 
 target_link_libraries(main
@@ -76,7 +89,7 @@ target_link_libraries(main
     ${OPENGL_gl_LIBRARY}
     glfw)
 
-target_compile_options(main PRIVATE -Werror -Wall -Wextra)
+target_compile_options(main PRIVATE -Werror -Wall -Wextra -Wno-unused-parameter)
 
 #---------------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------

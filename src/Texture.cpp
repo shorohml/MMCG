@@ -1,6 +1,6 @@
-#include "texture.h"
+#include "Texture.h"
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <stb_image.h>
 
 Texture::pointerType Texture::loadImg(const std::string& path)
 {
@@ -24,7 +24,7 @@ void Texture::glBind() const
 void Texture::glLoad()
 {
     if (textureID) {
-        glFree();
+        Release();
     }
     glGenTextures(1, &textureID);
     glBind();
@@ -54,7 +54,7 @@ void Texture::glLoad()
     glGenerateMipmap(GL_TEXTURE_2D);
 }
 
-void Texture::glFree()
+void Texture::Release()
 {
     glDeleteTextures(1, &textureID);
     textureID = 0;

@@ -1,5 +1,4 @@
-// Taken from https://github.com/v-san/ogl-samples
-
+//Macros for OpenGl errors check from https://github.com/v-san/ogl-samples
 #pragma once
 
 #include <fstream>

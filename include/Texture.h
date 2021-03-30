@@ -1,7 +1,8 @@
+// Texture class (loads image from disk and creates OpenGl texture)
 #pragma once
 
 #include "common.h"
-#include "stb_image.h"
+#include <stb_image.h>
 #include <memory>
 #include <string>
 
@@ -22,11 +23,17 @@ public:
     {
     }
 
+    virtual ~Texture() {};
+
+    Texture(const Texture&) = delete;
+
+    Texture& operator=(const Texture& other) = delete;
+
     void glBind() const;
 
     void glLoad();
 
-    void glFree();
+    void Release();
 
     GLuint getTextureID() const
     {
