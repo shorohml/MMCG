@@ -142,8 +142,9 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
 
     switch (key) {
     case GLFW_KEY_ESCAPE: //на Esc выходим из программы
-        if (action == GLFW_PRESS)
+        if (action == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, GL_TRUE);
+        }
         break;
     case GLFW_KEY_SPACE: //на пробел переключение в каркасный режим и обратно
         if (action == GLFW_PRESS) {
@@ -157,10 +158,11 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
         }
         break;
     default:
-        if (action == GLFW_PRESS)
+        if (action == GLFW_PRESS) {
             (state->keys)[key] = true;
-        else if (action == GLFW_RELEASE)
+        } else if (action == GLFW_RELEASE) {
             (state->keys)[key] = false;
+        }
     }
 }
 

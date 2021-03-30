@@ -36,18 +36,7 @@ ExternalProject_Add(
 ExternalProject_Get_Property(json SOURCE_DIR)
 set(JSON_INCLUDE_DIRS "${SOURCE_DIR}/include")
 
-#downlaod eigen
-ExternalProject_Add(
-    eigen
-    URL https://gitlab.com/libeigen/eigen/-/archive/3.3.9/eigen-3.3.9.zip
-    INSTALL_COMMAND ""
-    BUILD_COMMAND ""
-    CONFIGURE_COMMAND ""
-)
-ExternalProject_Get_Property(eigen SOURCE_DIR)
-set(EIGEN3_INCLUDE_DIRS ${SOURCE_DIR})
-
-#downlaod eigen
+#downlaod glm
 ExternalProject_Add(
     glm
     URL https://github.com/g-truc/glm/releases/download/0.9.9.8/glm-0.9.9.8.zip
@@ -75,12 +64,11 @@ set(SOURCE_FILES
 
 add_executable(main ${SOURCE_FILES})
 
-add_dependencies(main eigen json)
+add_dependencies(main json glm)
 
 target_include_directories(main
     PRIVATE
     ${OPENGL_INCLUDE_DIR}
-    ${EIGEN3_INCLUDE_DIRS}
     ${JSON_INCLUDE_DIRS}
     ${GLM_INCLUDE_DIRS}
     include)

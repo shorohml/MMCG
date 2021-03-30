@@ -4,8 +4,8 @@
 #include "Camera.h"
 #include "Texture.h"
 
-#include <memory>
 #include <GLFW/glfw3.h>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <vector>
@@ -16,17 +16,22 @@ public:
     float lastFrame = 0.0f; //Time of last frame
     float lastX = 1000, lastY = 500; //Last cursor position
     bool firstMouse = true; //true if mouse didn't move
-    int filling = 0; //каркасный режим или нет
+    int filling = 1; //каркасный режим или нет
     std::vector<bool> keys; //массив состояний кнопок - нажата/не нажата
     bool g_captureMouse = true; //Мышка захвачена нашим приложением или нет?
     Camera camera; //camera
 
-    AppState() : keys(1024, 0), camera(glm::vec3(0., 0., 3.0)) {}
+    AppState()
+        : keys(1024, 0)
+        , camera(glm::vec3(0., 0., 3.0))
+    {
+    }
 };
 
 class App {
 public:
-    App(const std::string &pathToConfig) {
+    App(const std::string& pathToConfig)
+    {
         std::ifstream input(pathToConfig);
         input >> config;
     }
