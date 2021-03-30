@@ -1,5 +1,8 @@
 {
     "width": 1920,
     "height": 1080,
-    "dataPath": "../data"
+    "name": "MMCG",
+    "dataPath": "../data",
+    "shadersPath": "../shaders",
+    "MouseSensitivity": 0.03
 }

@@ -30,11 +30,7 @@ public:
 
 class App {
 public:
-    App(const std::string& pathToConfig)
-    {
-        std::ifstream input(pathToConfig);
-        input >> config;
-    }
+    App(const std::string& pathToConfig);
 
     App(const App&) = delete;
 
@@ -44,15 +40,17 @@ public:
 
 private:
     //TODO: reimplement this
-    //Possible option:
+    //Possible solution:
     //1. Define Keybord, Mouse etc classes with parts of this state and corresponding callbacks
     //2. Unify them into one class with getters
     //3. Put instance of this class here
     AppState state; //we need to separate this into struct because of C-style GLFW callbacks
 
+    glm::vec3 lightPos = glm::vec3(1.2f, 1.0f, 2.0f);
     std::vector<std::unique_ptr<Texture>> textures; // textures and mesh
     GLuint g_vertexBufferObject;
     GLuint g_vertexArrayObject;
+    GLuint lightVao;
 
     nlohmann::json config; //application config
     GLFWwindow* window; //window

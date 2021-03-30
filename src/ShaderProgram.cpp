@@ -1,5 +1,5 @@
-#include <glm/gtc/type_ptr.hpp>
 #include "ShaderProgram.h"
+#include <glm/gtc/type_ptr.hpp>
 
 ShaderProgram::ShaderProgram(const std::unordered_map<GLenum, std::string>& inputShaders)
 {
@@ -153,7 +153,7 @@ void ShaderProgram::SetUniform(const std::string& location, int value) const
 {
     GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
     if (uniformLocation == -1) {
-        std::cerr << "Uniform  " << location << " not found" << std::endl;
+        std::cerr << "Uniform " << location << " not found" << std::endl;
         return;
     }
     glUniform1i(uniformLocation, value);
@@ -163,7 +163,7 @@ void ShaderProgram::SetUniform(const std::string& location, unsigned int value) 
 {
     GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
     if (uniformLocation == -1) {
-        std::cerr << "Uniform  " << location << " not found" << std::endl;
+        std::cerr << "Uniform " << location << " not found" << std::endl;
         return;
     }
     glUniform1ui(uniformLocation, value);
@@ -173,7 +173,7 @@ void ShaderProgram::SetUniform(const std::string& location, float value) const
 {
     GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
     if (uniformLocation == -1) {
-        std::cerr << "Uniform  " << location << " not found" << std::endl;
+        std::cerr << "Uniform " << location << " not found" << std::endl;
         return;
     }
     glUniform1f(uniformLocation, value);
@@ -183,18 +183,48 @@ void ShaderProgram::SetUniform(const std::string& location, double value) const
 {
     GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
     if (uniformLocation == -1) {
-        std::cerr << "Uniform  " << location << " not found" << std::endl;
+        std::cerr << "Uniform " << location << " not found" << std::endl;
         return;
     }
     glUniform1d(uniformLocation, value);
 }
 
-void ShaderProgram::SetUniform(const std::string& location, const glm::mat4 &value) const
+void ShaderProgram::SetUniform(const std::string& location, const glm::mat3& value) const
 {
     GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
     if (uniformLocation == -1) {
-        std::cerr << "Uniform  " << location << " not found" << std::endl;
+        std::cerr << "Uniform " << location << " not found" << std::endl;
+        return;
+    }
+    glUniformMatrix3fv(uniformLocation, 1, GL_FALSE, glm::value_ptr(value));
+}
+
+void ShaderProgram::SetUniform(const std::string& location, const glm::mat4& value) const
+{
+    GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
+    if (uniformLocation == -1) {
+        std::cerr << "Uniform " << location << " not found" << std::endl;
         return;
     }
     glUniformMatrix4fv(uniformLocation, 1, GL_FALSE, glm::value_ptr(value));
+}
+
+void ShaderProgram::SetUniform(const std::string& location, const glm::vec3 &value) const
+{
+    GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
+    if (uniformLocation == -1) {
+        std::cerr << "Uniform " << location << " not found" << std::endl;
+        return;
+    }
+    glUniform3fv(uniformLocation, 1, glm::value_ptr(value));
+}
+
+void ShaderProgram::SetUniform(const std::string& location, const glm::vec4 &value) const
+{
+    GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
+    if (uniformLocation == -1) {
+        std::cerr << "Uniform " << location << " not found" << std::endl;
+        return;
+    }
+    glUniform4fv(uniformLocation, 1, glm::value_ptr(value));
 }

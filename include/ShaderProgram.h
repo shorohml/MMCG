@@ -1,8 +1,8 @@
 //ShaderProgram class from https://github.com/v-san/ogl-samples
 #pragma once
 
-#include <unordered_map>
 #include <glm/glm.hpp>
+#include <unordered_map>
 
 #include "common.h"
 
@@ -33,7 +33,13 @@ public:
 
     void SetUniform(const std::string& location, unsigned int value) const;
 
-    void SetUniform(const std::string& location, const glm::mat4 &value) const;
+    void SetUniform(const std::string& location, const glm::vec3& value) const;
+
+    void SetUniform(const std::string& location, const glm::vec4 &value) const;
+
+    void SetUniform(const std::string& location, const glm::mat3& value) const;
+
+    void SetUniform(const std::string& location, const glm::mat4& value) const;
 
     GLuint ProgramObj;
 

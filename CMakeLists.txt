@@ -62,7 +62,12 @@ set(SOURCE_FILES
     src/Camera.cpp
     src/App.cpp)
 
-add_executable(main ${SOURCE_FILES})
+set(SHADERS
+    shaders/fragmentPhong.glsl)
+
+add_executable(main ${SOURCE_FILES} ${SHADERS})
+
+set_source_files_properties(${SHADERS} PROPERTIES HEADER_FILE_ONLY TRUE)
 
 add_dependencies(main json glm)
 
@@ -79,12 +84,3 @@ target_link_libraries(main
     glfw)
 
 target_compile_options(main PRIVATE -Werror -Wall -Wextra)
-
-#---------------------------------------------------------------------------------------
-#---------------------------------------------------------------------------------------
-# copy shaders
-#---------------------------------------------------------------------------------------
-#---------------------------------------------------------------------------------------
-
-add_custom_command(TARGET main POST_BUILD COMMAND ${CMAKE_COMMAND} -E
-    copy_directory "${PROJECT_SOURCE_DIR}/shaders" "${PROJECT_BINARY_DIR}")

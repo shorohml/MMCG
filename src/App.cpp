@@ -1,6 +1,16 @@
 #include "App.h"
 #include "ShaderProgram.h"
 
+App::App(const std::string& pathToConfig)
+{
+    std::ifstream input(pathToConfig);
+    input >> config;
+
+    state.camera.MouseSensitivity = config["MouseSensitivity"];
+    state.lastX = static_cast<float>(config["width"]) / 2.0f;
+    state.lastY = static_cast<float>(config["height"]) / 2.0f;
+}
+
 int App::initGL() const
 {
     //грузим функции opengl через glad
@@ -28,8 +38,11 @@ int App::createWindow()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+#ifdef __APPLE__
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+#endif
 
-    window = glfwCreateWindow(config["width"], config["height"], "OpenGL basic sample", nullptr, nullptr);
+    window = glfwCreateWindow(config["width"], config["height"], std::string(config["name"]).c_str(), nullptr, nullptr);
     if (window == nullptr) {
         std::cout << "Failed to create GLFW window" << std::endl;
         glfwTerminate();
@@ -57,50 +70,49 @@ int App::createWindow()
 void App::loadModels()
 {
     float vertices[] = {
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+        // positions          // normals           // texture coords
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
 
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
 
-        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-        -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
 
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
 
-        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
+        0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
 
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f
     };
-
-    g_vertexBufferObject = 0;
 
     //VAO
     glGenVertexArrays(1, &g_vertexArrayObject);
@@ -117,23 +129,51 @@ void App::loadModels()
     GL_CHECK_ERRORS;
 
     //position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     GL_CHECK_ERRORS;
     glEnableVertexAttribArray(0);
     GL_CHECK_ERRORS;
-    //texture coordinates attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    //normals attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     GL_CHECK_ERRORS;
     glEnableVertexAttribArray(1);
     GL_CHECK_ERRORS;
+    //texture coordinates
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    GL_CHECK_ERRORS;
+    glEnableVertexAttribArray(2);
+    GL_CHECK_ERRORS;
+
+    //VAO
+    glGenVertexArrays(1, &lightVao);
+    GL_CHECK_ERRORS;
+    glBindVertexArray(lightVao);
+    GL_CHECK_ERRORS;
+
+    //VBO
+    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBufferObject);
+    GL_CHECK_ERRORS;
+
+    //position attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    GL_CHECK_ERRORS;
+    glEnableVertexAttribArray(0);
+    GL_CHECK_ERRORS;
 
     //generate textures
-    std::string path1 = std::string(config["dataPath"]) + "/textures/container.jpg";
-    std::string path2 = std::string(config["dataPath"]) + "/textures/awesomeface.png";
-    textures.push_back(std::make_unique<Texture>(path1));
-    textures.push_back(std::make_unique<Texture>(path2));
-    textures[0]->GLLoad();
-    textures[1]->GLLoad();
+    std::vector<std::string> names = {
+        "container.jpg",
+        "awesomeface.png",
+        "container2.png",
+        "container2_specular.png",
+        "matrix.jpg"        
+    };
+    std::size_t i = 0;
+    for (const std::string &name: names) {
+        std::string path = std::string(config["dataPath"]) + "/textures/" + name;
+        textures.push_back(std::make_unique<Texture>(path));
+        textures[i++]->GLLoad();
+    }
 }
 
 void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int action, int /* mode */)
@@ -227,12 +267,17 @@ void App::doCameraMovement()
 
 void App::mainLoop()
 {
-    //создание шейдерной программы из двух файлов с исходниками шейдеров
-    //используется класс-обертка ShaderProgram
+    //create shader programs using wrapper ShaderProgram class
     std::unordered_map<GLenum, std::string> shaders;
-    shaders[GL_VERTEX_SHADER] = "vertex.glsl";
-    shaders[GL_FRAGMENT_SHADER] = "fragment.glsl";
-    ShaderProgram program(shaders);
+    std::string shadersPath = config["shadersPath"];
+    shaders[GL_VERTEX_SHADER] =  shadersPath + "/vertexPhong.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentPhong.glsl";
+    ShaderProgram lightningProgram(shaders);
+    GL_CHECK_ERRORS;
+
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexLightSource.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentLightSource.glsl";
+    ShaderProgram sourceProgram(shaders);
     GL_CHECK_ERRORS;
 
     //force 60 frames per second
@@ -243,24 +288,12 @@ void App::mainLoop()
 
     //capture cursor
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
     //register callbacks
     glfwSetKeyCallback(window, OnKeyboardPressed);
     glfwSetCursorPosCallback(window, OnMouseMove);
     glfwSetMouseButtonCallback(window, OnMouseButtonClicked);
     glfwSetScrollCallback(window, OnMouseScroll);
-
-    glm::vec3 cubePositions[] = {
-        glm::vec3(0.0f, 0.0f, 0.0f),
-        glm::vec3(2.0f, 5.0f, -15.0f),
-        glm::vec3(-1.5f, -2.2f, -2.5f),
-        glm::vec3(-3.8f, -2.0f, -12.3f),
-        glm::vec3(2.4f, -0.4f, -3.5f),
-        glm::vec3(-1.7f, 3.0f, -7.5f),
-        glm::vec3(1.3f, -2.0f, -2.5f),
-        glm::vec3(1.5f, 2.0f, -2.5f),
-        glm::vec3(1.5f, 0.2f, -1.5f),
-        glm::vec3(-1.3f, 1.0f, -1.5f)
-    };
 
     //цикл обработки сообщений и отрисовки сцены каждый кадр
     float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
@@ -277,48 +310,73 @@ void App::mainLoop()
         //очистка и заполнение экрана цветом
         //
         glViewport(0, 0, config["width"], config["height"]);
-        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        glUseProgram(program.ProgramObj); //StartUseShader
+        glUseProgram(lightningProgram.ProgramObj); //StartUseShader
 
         glBindVertexArray(g_vertexArrayObject);
 
-        //activate textures
-        glActiveTexture(GL_TEXTURE0);
-        textures[0]->GLBind();
-        glActiveTexture(GL_TEXTURE1);
-        textures[1]->GLBind();
-        program.SetUniform("texture1", 0);
-        program.SetUniform("texture2", 1);
-
+        //model
+        glm::mat4 model = glm::mat4(1.0f);
         //view
         glm::mat4 view = state.camera.GetViewMatrix();
-
+        glm::mat4 MV = view * model;
         //projection
         glm::mat4 projection;
         projection = glm::perspective(glm::radians(state.camera.Zoom), ratio, 0.1f, 100.0f);
+        glm::mat4 MVP = projection * MV;
+        //normal matrix
+        glm::mat3 normalMatrix = glm::transpose(glm::inverse(MV));
 
         //set uniforms with transforms
-        program.SetUniform("view", view);
-        program.SetUniform("projection", projection);
+        lightningProgram.SetUniform("MV", MV);
+        lightningProgram.SetUniform("MVP", MVP);
+        lightningProgram.SetUniform("normalMatrix", normalMatrix);
 
-        for (unsigned int i = 0; i < 10; i++) {
-            //model
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            float angle = 20.0f * i;
-            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-            program.SetUniform("model", model);
+        //set material
+        lightningProgram.SetUniform("material.diffuse", 0);
+        lightningProgram.SetUniform("material.specular", 1);
+        lightningProgram.SetUniform("material.emission", 2);
+        lightningProgram.SetUniform("material.shininess", 64.0f);
+        glActiveTexture(GL_TEXTURE0);
+        textures[2]->GLBind();
+        glActiveTexture(GL_TEXTURE1);
+        textures[3]->GLBind();
+        glActiveTexture(GL_TEXTURE2);
+        textures[4]->GLBind();
 
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+        //set light source
+        lightningProgram.SetUniform("light.ambient", glm::vec3(0.2f));
+        lightningProgram.SetUniform("light.diffuse", glm::vec3(0.5f));
+        lightningProgram.SetUniform("light.specular", glm::vec3(1.0f));
+        lightningProgram.SetUniform("light.position", glm::vec3(view * glm::vec4(lightPos, 1.0f)));
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        glUseProgram(sourceProgram.ProgramObj); //StartUseShader
+
+        glBindVertexArray(lightVao);
+
+        //model
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f));
+        MVP = projection * view * model;
+
+        //set uniforms with transforms
+        sourceProgram.SetUniform("MVP", MVP);
+
+        //color
+        sourceProgram.SetUniform("lightColor", glm::vec3(1.0));
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glUseProgram(0); //StopUseShader
 
         glfwSwapBuffers(window);
     }
-    program.Release();
+    lightningProgram.Release();
 }
 
 void App::release()
