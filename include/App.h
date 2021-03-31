@@ -19,6 +19,7 @@ public:
     int filling = 1; //каркасный режим или нет
     std::vector<bool> keys; //массив состояний кнопок - нажата/не нажата
     bool g_captureMouse = true; //Мышка захвачена нашим приложением или нет?
+    bool isFlashlightOn = false; //Is flashlight on?
     Camera camera; //camera
 
     AppState()

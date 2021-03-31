@@ -42,6 +42,7 @@ uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
 uniform Material material;
+uniform bool spotlightOn;
 
 out vec4 FragColor;
 
@@ -191,15 +192,17 @@ void main()
             viewDir);
     }
 
-    //spot light
-    color += calcSpotLight(
-        spotLight,
-        material,
-        materialDiffuse,
-        materialSpecular,
-        norm,
-        fragPos,
-        viewDir);
+    if (spotlightOn) {
+        //spotlight
+        color += calcSpotLight(
+            spotLight,
+            material,
+            materialDiffuse,
+            materialSpecular,
+            norm,
+            fragPos,
+            viewDir);
+    }
 
     FragColor = vec4(color, 1.0);
 }

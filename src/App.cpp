@@ -197,6 +197,11 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             }
         }
         break;
+    case GLFW_KEY_T: //turn flashlight on/off
+        if (action == GLFW_PRESS) {
+            state->isFlashlightOn = !(state->isFlashlightOn);
+        }
+        break;
     default:
         if (action == GLFW_PRESS) {
             (state->keys)[key] = true;
@@ -381,6 +386,8 @@ void App::mainLoop()
         lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.05f));
         lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.4f));
         lightningProgram.SetUniform("dirLight.specular", glm::vec3(0.5f));
+
+        lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
 
         //set material
         lightningProgram.SetUniform("material.diffuse", 0);
