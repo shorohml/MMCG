@@ -373,8 +373,8 @@ void App::mainLoop()
         lightningProgram.SetUniform("spotLight.pointLight.specular", glm::vec3(1.0f));
 
         lightningProgram.SetUniform("spotLight.pointLight.constant", 1.0f);
-        lightningProgram.SetUniform("spotLight.pointLight.linear", 0.09f);
-        lightningProgram.SetUniform("spotLight.pointLight.quadratic", 0.032f);
+        lightningProgram.SetUniform("spotLight.pointLight.linear", 0.22f);
+        lightningProgram.SetUniform("spotLight.pointLight.quadratic", 0.2f);
 
         lightningProgram.SetUniform("spotLight.direction", glm::vec3(0.0f, 0.0f, -1.0f));
         lightningProgram.SetUniform("spotLight.cutOff", glm::cos(glm::radians(10.5f)));

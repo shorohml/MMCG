@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 
-#include "glError.h"
+#include "GLError.h"
 
 //полезный макрос для проверки ошибок
 //в строчке, где он был записан вызывает ThrowExceptionOnGLError, которая при возникновении ошибки opengl

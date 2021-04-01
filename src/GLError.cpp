@@ -1,4 +1,4 @@
-# include "glError.h"
+# include "GLError.h"
 
 
 void ThrowExceptionOnGLError(int line, const char* file)
