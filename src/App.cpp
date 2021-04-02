@@ -190,12 +190,12 @@ void App::mainLoop()
     //create shader programs using wrapper ShaderProgram class
     std::unordered_map<GLenum, std::string> shaders;
     std::string shadersPath = config["shadersPath"];
-    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexPhong.glsl";
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexPhong_ins.glsl";
     shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentPhong.glsl";
     ShaderProgram lightningProgram(shaders);
     GL_CHECK_ERRORS;
 
-    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexLightSource.glsl";
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexLightSource_ins.glsl";
     shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentLightSource.glsl";
     ShaderProgram sourceProgram(shaders);
     GL_CHECK_ERRORS;
@@ -250,7 +250,7 @@ void App::mainLoop()
         //
         glViewport(0, 0, config["width"], config["height"]);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(lightningProgram.ProgramObj); //StartUseShader
 
@@ -268,11 +268,7 @@ void App::mainLoop()
 
             //set point light source
             lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(view * glm::vec4(pointLightPositions[i], 1.0f)));
-
-            lightningProgram.SetUniform("pointLights[" + idx + "].ambient", glm::vec3(0.05f));
-            lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", glm::vec3(0.8f));
-            lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(1.0f));
-
+            lightningProgram.SetUniform("pointLights[" + idx + "].color", glm::vec3(1.0f));
             lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
             lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.09f);
             lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.032f);
@@ -280,57 +276,47 @@ void App::mainLoop()
 
         //set spotlight source
         lightningProgram.SetUniform("spotLight.pointLight.position", glm::vec3(0.0f));
-
-        lightningProgram.SetUniform("spotLight.pointLight.ambient", glm::vec3(0.0f));
-        lightningProgram.SetUniform("spotLight.pointLight.diffuse", glm::vec3(1.0f));
-        lightningProgram.SetUniform("spotLight.pointLight.specular", glm::vec3(1.0f));
-
+        lightningProgram.SetUniform("spotLight.pointLight.color", glm::vec3(1.0f));
         lightningProgram.SetUniform("spotLight.pointLight.constant", 1.0f);
         lightningProgram.SetUniform("spotLight.pointLight.linear", 0.22f);
         lightningProgram.SetUniform("spotLight.pointLight.quadratic", 0.2f);
-
         lightningProgram.SetUniform("spotLight.direction", glm::vec3(0.0f, 0.0f, -1.0f));
         lightningProgram.SetUniform("spotLight.cutOff", glm::cos(glm::radians(10.5f)));
         lightningProgram.SetUniform("spotLight.outerCutOff", glm::cos(glm::radians(14.5f)));
+        lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
 
         //set directional light source
         lightningProgram.SetUniform("dirLight.direction", glm::vec3(-0.2f, -1.0f, -0.3f));
-
-        lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.05f));
-        lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.4f));
-        lightningProgram.SetUniform("dirLight.specular", glm::vec3(0.5f));
-
-        lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
+        lightningProgram.SetUniform("dirLight.color", glm::vec3(0.5f));
 
         //set material
-        lightningProgram.SetUniform("material.diffuse", 0);
-        lightningProgram.SetUniform("material.specular", 1);
+        lightningProgram.SetUniform("material.ambient", glm::vec3(0.05f));
+        lightningProgram.SetUniform("material.diffuse", glm::vec3(0.8f));
+        lightningProgram.SetUniform("material.specular", glm::vec3(1.0f));
         lightningProgram.SetUniform("material.shininess", 64.0f);
+        lightningProgram.SetUniform("hasDiffuseMap", true);
+        lightningProgram.SetUniform("diffuseMap", 0);
+        lightningProgram.SetUniform("hasSpecularMap", true);
+        lightningProgram.SetUniform("specularMap", 1);
         glActiveTexture(GL_TEXTURE0);
         textures[2]->GLBind();
         glActiveTexture(GL_TEXTURE1);
         textures[3]->GLBind();
 
+        std::vector<glm::mat4> modelMatrices(cubePositions.size());
         for (std::size_t i = 0; i < cubePositions.size(); ++i) {
             //model
             model = glm::mat4(1.0f);
             model = glm::translate(model, cubePositions[i]);
             float angle = 20.0f * i;
             model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
-            //model-view
-            glm::mat4 MV = view * model;
-            //model-view-projection
-            glm::mat4 MVP = projection * MV;
-            //normal matrix
-            glm::mat3 normalMatrix = glm::transpose(glm::inverse(MV));
-
-            //set uniforms with transforms
-            lightningProgram.SetUniform("MV", MV);
-            lightningProgram.SetUniform("MVP", MVP);
-            lightningProgram.SetUniform("normalMatrix", normalMatrix);
-
-            cubeMesh->Draw();
+            modelMatrices[i] = model;
         }
+        //set uniforms with transforms
+        lightningProgram.SetUniform("view", view);
+        lightningProgram.SetUniform("projection", projection);
+        cubeMesh->Draw(modelMatrices);
+        cubeMesh->Draw(modelMatrices);
 
         glUseProgram(sourceProgram.ProgramObj); //StartUseShader
 
@@ -338,25 +324,26 @@ void App::mainLoop()
         sourceProgram.SetUniform("lightColor", glm::vec3(1.0));
 
         //draw light sources
+        modelMatrices.resize(pointLightPositions.size());
         for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
             //model
             model = glm::mat4(1.0f);
             model = glm::translate(model, pointLightPositions[i]);
             model = glm::scale(model, glm::vec3(0.2f));
-            //model-view-projection
-            glm::mat4 MVP = projection * view * model;
-
-            //set uniforms with transforms
-            sourceProgram.SetUniform("MVP", MVP);
-
-            lightMesh->Draw();
+            modelMatrices[i] = model;
         }
+        //set uniforms with transforms
+        sourceProgram.SetUniform("view", view);
+        sourceProgram.SetUniform("projection", projection);
+
+        lightMesh->Draw(modelMatrices);
 
         glUseProgram(0); //StopUseShader
 
         glfwSwapBuffers(window);
     }
     lightningProgram.Release();
+    sourceProgram.Release();
 }
 
 void App::release()

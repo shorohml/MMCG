@@ -42,6 +42,8 @@ void Mesh::GLSetup()
     GL_CHECK_ERRORS;
     glGenBuffers(1, &texCoordsVBO);
     GL_CHECK_ERRORS;
+    glGenBuffers(1, &modelsVBO);
+    GL_CHECK_ERRORS;
     glGenBuffers(1, &EBO);
     GL_CHECK_ERRORS;
 
@@ -55,9 +57,9 @@ void Mesh::GLSetup()
         GL_CHECK_ERRORS;
         glBufferData(GL_ARRAY_BUFFER, positions.size() * sizeof(GL_FLOAT) * 3, positions.data(), GL_STATIC_DRAW);
         GL_CHECK_ERRORS;
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 3, (GLvoid*)0);
-        GL_CHECK_ERRORS;
         glEnableVertexAttribArray(0);
+        GL_CHECK_ERRORS;
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 3, (GLvoid*)0);
         GL_CHECK_ERRORS;
 
         //normals
@@ -65,9 +67,9 @@ void Mesh::GLSetup()
         GL_CHECK_ERRORS;
         glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(GL_FLOAT) * 3, normals.data(), GL_STATIC_DRAW);
         GL_CHECK_ERRORS;
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 3, (GLvoid*)0);
-        GL_CHECK_ERRORS;
         glEnableVertexAttribArray(1);
+        GL_CHECK_ERRORS;
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 3, (GLvoid*)0);
         GL_CHECK_ERRORS;
 
         //texture coordinates
@@ -75,9 +77,9 @@ void Mesh::GLSetup()
         GL_CHECK_ERRORS;
         glBufferData(GL_ARRAY_BUFFER, texCoords.size() * sizeof(GL_FLOAT) * 2, texCoords.data(), GL_STATIC_DRAW);
         GL_CHECK_ERRORS;
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 2, (GLvoid*)0);
-        GL_CHECK_ERRORS;
         glEnableVertexAttribArray(2);
+        GL_CHECK_ERRORS;
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 2, (GLvoid*)0);
         GL_CHECK_ERRORS;
 
         //indices
@@ -95,6 +97,7 @@ void Mesh::GLSetup()
     isLoaded = true;
 }
 
+//draw without instancing - select vertexPhong.glsl vertex shader
 void Mesh::Draw() const
 {
     if (!isLoaded) {
@@ -106,6 +109,26 @@ void Mesh::Draw() const
     GL_CHECK_ERRORS;
     glBindVertexArray(0);
     GL_CHECK_ERRORS;
+}
+
+//draw with instancing - select vertexPhongInstanced.glsl vertex shader
+void Mesh::Draw(const std::vector<glm::mat4> &modelMatrices) const
+{
+    glBindVertexArray(VAO);
+    GL_CHECK_ERRORS;
+    glBindBuffer(GL_ARRAY_BUFFER, modelsVBO);
+    GL_CHECK_ERRORS;
+    glBufferData(GL_ARRAY_BUFFER, modelMatrices.size() * sizeof(GL_FLOAT) * 16, modelMatrices.data(), GL_STATIC_DRAW);
+    GL_CHECK_ERRORS;
+    for (int i = 0; i < 4; ++i) {
+        glEnableVertexAttribArray(i + 3);
+        GL_CHECK_ERRORS;
+        glVertexAttribPointer(i + 3, 4, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 16, (GLvoid*)(sizeof(GLfloat) * i * 4));
+        GL_CHECK_ERRORS;
+        glVertexAttribDivisor(i + 3, 1);
+        GL_CHECK_ERRORS;
+    }
+    glDrawElementsInstanced(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0, modelMatrices.size());
 }
 
 void Mesh::Release()

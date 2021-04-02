@@ -34,6 +34,7 @@ public:
     void GLSetup();
 
     void Draw() const;
+    void Draw(const std::vector<glm::mat4> &modelMatrices) const;
 
     void Release();
 
@@ -42,6 +43,7 @@ private:
     GLuint positionsVBO;
     GLuint normalsVBO;
     GLuint texCoordsVBO;
+    GLuint modelsVBO;
     GLuint VAO;
     GLuint EBO;
 };
