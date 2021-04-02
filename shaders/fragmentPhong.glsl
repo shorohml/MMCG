@@ -37,12 +37,15 @@ struct SpotLight {
     float outerCutOff; //cutoff angle specifing outer radius to smooth the spotlight
 };
 
+//light sources 
 #define NR_POINT_LIGHTS 4
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
-uniform Material material;
 uniform bool spotlightOn;
+
+//material
+uniform Material material;
 
 out vec4 FragColor;
 

@@ -25,9 +25,10 @@ set(SOURCE_FILES
     src/main.cpp
     src/ShaderProgram.cpp
     src/GLError.cpp
-    src/Texture.cpp
     src/Camera.cpp
-    src/App.cpp)
+    src/App.cpp
+    src/Models/Mesh.cpp
+    src/Models/Texture.cpp)
 
 add_executable(main ${SOURCE_FILES})
 

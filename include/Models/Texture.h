@@ -2,8 +2,8 @@
 #pragma once
 
 #include "common.h"
-#include <stb_image.h>
 #include <memory>
+#include <stb_image.h>
 #include <string>
 
 class Texture {

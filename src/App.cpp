@@ -67,115 +67,6 @@ int App::createWindow()
     return 0;
 }
 
-void App::loadModels()
-{
-    float vertices[] = {
-        // positions          // normals           // texture coords
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 1.0f, 1.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f,
-
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f,
-        -0.5f, 0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
-
-        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        -0.5f, 0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        -0.5f, -0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, -1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-        0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        -0.5f, -0.5f, 0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 0.0f, 1.0f,
-
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
-        0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-        0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
-        -0.5f, 0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
-        -0.5f, 0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f
-    };
-
-    //VAO
-    glGenVertexArrays(1, &g_vertexArrayObject);
-    GL_CHECK_ERRORS;
-    glBindVertexArray(g_vertexArrayObject);
-    GL_CHECK_ERRORS;
-
-    //VBO
-    glGenBuffers(1, &g_vertexBufferObject);
-    GL_CHECK_ERRORS;
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBufferObject);
-    GL_CHECK_ERRORS;
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    GL_CHECK_ERRORS;
-
-    //position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    GL_CHECK_ERRORS;
-    glEnableVertexAttribArray(0);
-    GL_CHECK_ERRORS;
-    //normals attribute
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    GL_CHECK_ERRORS;
-    glEnableVertexAttribArray(1);
-    GL_CHECK_ERRORS;
-    //texture coordinates
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-    GL_CHECK_ERRORS;
-    glEnableVertexAttribArray(2);
-    GL_CHECK_ERRORS;
-
-    //VAO
-    glGenVertexArrays(1, &lightVao);
-    GL_CHECK_ERRORS;
-    glBindVertexArray(lightVao);
-    GL_CHECK_ERRORS;
-
-    //VBO
-    glBindBuffer(GL_ARRAY_BUFFER, g_vertexBufferObject);
-    GL_CHECK_ERRORS;
-
-    //position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
-    GL_CHECK_ERRORS;
-    glEnableVertexAttribArray(0);
-    GL_CHECK_ERRORS;
-
-    //generate textures
-    std::vector<std::string> names = {
-        "container.jpg",
-        "awesomeface.png",
-        "container2.png",
-        "container2_specular.png",
-        "matrix.jpg"
-    };
-    std::size_t i = 0;
-    for (const std::string& name : names) {
-        std::string path = std::string(config["dataPath"]) + "/textures/" + name;
-        textures.push_back(std::make_unique<Texture>(path));
-        textures[i++]->GLLoad();
-    }
-}
-
 void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int action, int /* mode */)
 {
     AppState* state = reinterpret_cast<AppState*>(glfwGetWindowUserPointer(window));
@@ -270,6 +161,30 @@ void App::doCameraMovement()
     }
 }
 
+void App::loadModels()
+{
+    //load textures
+    std::vector<std::string> names = {
+        "container.jpg",
+        "awesomeface.png",
+        "container2.png",
+        "container2_specular.png",
+        "matrix.jpg"
+    };
+    std::size_t i = 0;
+    for (const std::string& name : names) {
+        std::string path = std::string(config["dataPath"]) + "/textures/" + name;
+        textures.push_back(std::make_unique<Texture>(path));
+        textures[i++]->GLLoad();
+    }
+
+    //create meshes
+    cubeMesh = createCube();
+    cubeMesh->GLSetup();
+    lightMesh = createCube();
+    lightMesh->GLSetup();
+}
+
 void App::mainLoop()
 {
     //create shader programs using wrapper ShaderProgram class
@@ -338,8 +253,6 @@ void App::mainLoop()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         glUseProgram(lightningProgram.ProgramObj); //StartUseShader
-
-        glBindVertexArray(g_vertexArrayObject);
 
         //model
         glm::mat4 model(1.0);
@@ -416,12 +329,10 @@ void App::mainLoop()
             lightningProgram.SetUniform("MVP", MVP);
             lightningProgram.SetUniform("normalMatrix", normalMatrix);
 
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            cubeMesh->Draw();
         }
 
         glUseProgram(sourceProgram.ProgramObj); //StartUseShader
-
-        glBindVertexArray(lightVao);
 
         //color
         sourceProgram.SetUniform("lightColor", glm::vec3(1.0));
@@ -438,7 +349,7 @@ void App::mainLoop()
             //set uniforms with transforms
             sourceProgram.SetUniform("MVP", MVP);
 
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+            lightMesh->Draw();
         }
 
         glUseProgram(0); //StopUseShader
@@ -450,8 +361,8 @@ void App::mainLoop()
 
 void App::release()
 {
-    glDeleteBuffers(1, &g_vertexBufferObject);
-    glDeleteBuffers(1, &g_vertexArrayObject);
+    cubeMesh->Release();
+    lightMesh->Release();
     for (std::unique_ptr<Texture>& texture : textures) {
         texture->Release();
     }

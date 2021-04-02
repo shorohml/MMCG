@@ -2,7 +2,8 @@
 #pragma once
 
 #include "Camera.h"
-#include "Texture.h"
+#include "Models/Texture.h"
+#include "Models/Mesh.h"
 
 #include <GLFW/glfw3.h>
 #include <memory>
@@ -49,9 +50,8 @@ private:
 
     glm::vec3 lightPos = glm::vec3(1.2f, 1.0f, 2.0f);
     std::vector<std::unique_ptr<Texture>> textures; // textures and mesh
-    GLuint g_vertexBufferObject;
-    GLuint g_vertexArrayObject;
-    GLuint lightVao;
+    std::unique_ptr<Mesh> cubeMesh;
+    std::unique_ptr<Mesh> lightMesh;
 
     nlohmann::json config; //application config
     GLFWwindow* window; //window
