@@ -31,7 +31,7 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 4
+#define NR_POINT_LIGHTS 5
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;

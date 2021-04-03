@@ -17,6 +17,7 @@ glm::vec2 ai2glm2D(aiVector3D& vec)
 }
 
 void fromAiMesh(
+    const std::string& directory,
     const aiMesh* assimpMesh,
     const aiScene* assimpScene,
     std::vector<std::unique_ptr<Mesh>>& scene,
@@ -46,10 +47,11 @@ void fromAiMesh(
         }
     }
 
-    uint32_t matId = 0; 
+    uint32_t matId = 0;
     if (assimpScene->HasMaterials()) {
+        matId = maxMatId + 1;
         Material material;
-        material.id = maxMatId + 1;
+        material.id = matId;
 
         aiMaterial* assimpMaterial = assimpScene->mMaterials[assimpMesh->mMaterialIndex];
 
@@ -72,7 +74,8 @@ void fromAiMesh(
             aiString str;
             assimpMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &str);
             std::string path(str.C_Str());
-            if (textures.count(path) != 0) {
+            path = directory + "/" + path;
+            if (textures.count(path) == 0) {
                 textures[path] = std::make_unique<Texture>(path);
                 textures[path]->GLLoad();
             }
@@ -85,7 +88,8 @@ void fromAiMesh(
             aiString str;
             assimpMaterial->GetTexture(aiTextureType_SPECULAR, 0, &str);
             std::string path(str.C_Str());
-            if (textures.count(path) != 0) {
+            path = directory + "/" + path;
+            if (textures.count(path) == 0) {
                 textures[path] = std::make_unique<Texture>(path);
                 textures[path]->GLLoad();
             }
@@ -113,6 +117,7 @@ void importSceneFromFile(
     if (!assimpScene || assimpScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !assimpScene->mRootNode) {
         throw std::runtime_error(importer.GetErrorString());
     }
+    std::string directory = path.substr(0, path.find_last_of('/'));
 
     uint32_t maxMatId = 0;
     for (auto& item : materials) {
@@ -123,6 +128,7 @@ void importSceneFromFile(
     for (uint32_t i = 0; i < assimpScene->mNumMeshes; ++i) {
         aiMesh* assimpMesh = assimpScene->mMeshes[i];
         fromAiMesh(
+            directory,
             assimpMesh,
             assimpScene,
             scene,

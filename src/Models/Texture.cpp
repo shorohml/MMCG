@@ -4,7 +4,6 @@
 
 Texture::pointerType Texture::loadImg(const std::string& path)
 {
-    stbi_set_flip_vertically_on_load(true);
     stbi_uc* img = stbi_load(path.c_str(), &width, &height, &nrChannels, 0);
     if (img == nullptr) {
         throw std::runtime_error("Couldn't load image " + path);
