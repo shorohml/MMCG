@@ -40,7 +40,7 @@ void Material::Setup(
 void Material::SetMaps(
     const std::string& diffuseMapPath_,
     const std::string& specularMapPath_,
-    std::unordered_map<std::string, std::unique_ptr<Texture>> &textures)
+    std::unordered_map<std::string, std::unique_ptr<Texture>>& textures)
 {
     if (textures.count(diffuseMapPath_)) {
         hasDiffuseMap = true;
@@ -57,8 +57,10 @@ void Material::SetMaps(
 Mesh::Mesh(
     std::vector<float>&& data,
     uint32_t nVertices,
-    std::uint32_t matId_)
+    std::uint32_t matId_,
+    bool isStatic_)
     : matId(matId_)
+    , isStatic(isStatic_)
 {
     if (data.size() != nVertices * 8) {
         throw std::runtime_error("Data array size should be nVertices * 8");
@@ -166,7 +168,7 @@ void Mesh::Draw() const
     GL_CHECK_ERRORS;
 }
 
-//draw with instancing - select vertexPhongInstanced.glsl vertex shader
+//draw with instancing - select vertexPhong_ins.glsl vertex shader
 void Mesh::Draw(const std::vector<glm::mat4>& modelMatrices) const
 {
     glBindVertexArray(VAO);

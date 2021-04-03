@@ -171,6 +171,7 @@ void App::loadModels()
         scene,
         materials,
         textures);
+    scene = unifyStaticMeshes(scene, materials);
     scene.push_back(createCube());
 }
 
@@ -218,11 +219,24 @@ void App::mainLoop()
 
     //цикл обработки сообщений и отрисовки сцены каждый кадр
     float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
+    uint32_t frameCount = 0;
+    float deltaSum = 0.0f;
     while (!glfwWindowShouldClose(window)) {
         //per-frame time logic
         float currentFrame = glfwGetTime();
         state.deltaTime = currentFrame - state.lastFrame;
         state.lastFrame = currentFrame;
+
+        //compute FPS
+        deltaSum += state.deltaTime;
+        ++frameCount;
+        if (deltaSum >= printEvery) {
+            std::uint32_t fps = round(static_cast<float>(frameCount) / deltaSum);
+            std::string title = std::string(config["name"]) + " FPS: " + std::to_string(fps);
+            glfwSetWindowTitle(window, title.c_str());
+            deltaSum = 0.0f;
+            frameCount = 0;
+        }
 
         //handle events
         glfwPollEvents();
@@ -262,14 +276,14 @@ void App::mainLoop()
         lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
         lightningProgram.SetUniform("spotLight.pointLight.position", glm::vec3(0.0f));
         lightningProgram.SetUniform("spotLight.pointLight.ambient", glm::vec3(0.05f));
-        lightningProgram.SetUniform("spotLight.pointLight.diffuse", glm::vec3(0.8f));
+        lightningProgram.SetUniform("spotLight.pointLight.diffuse", glm::vec3(0.9f));
         lightningProgram.SetUniform("spotLight.pointLight.specular", glm::vec3(1.0f));
         lightningProgram.SetUniform("spotLight.pointLight.constant", 1.0f);
         lightningProgram.SetUniform("spotLight.pointLight.linear", 0.0014f);
         lightningProgram.SetUniform("spotLight.pointLight.quadratic", 0.000007f);
         lightningProgram.SetUniform("spotLight.direction", glm::vec3(0.0f, 0.0f, -1.0f));
-        lightningProgram.SetUniform("spotLight.cutOff", glm::cos(glm::radians(25.0f)));
-        lightningProgram.SetUniform("spotLight.outerCutOff", glm::cos(glm::radians(30.0f)));
+        lightningProgram.SetUniform("spotLight.cutOff", glm::cos(glm::radians(15.0f)));
+        lightningProgram.SetUniform("spotLight.outerCutOff", glm::cos(glm::radians(20.0f)));
 
         //set directional light source
         glm::vec4 direction = glm::vec4(-0.2f, -1.0f, -0.3f, 0.0f);

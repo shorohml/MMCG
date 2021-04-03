@@ -56,6 +56,7 @@ private:
 
     nlohmann::json config; //application config
     GLFWwindow* window; //window
+    float printEvery = 1.0f;
 
     int initGL() const;
 

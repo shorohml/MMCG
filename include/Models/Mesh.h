@@ -46,6 +46,7 @@ public:
     std::vector<uint32_t> indices;
     std::uint32_t matId;
     glm::mat4 model;
+    bool isStatic;
 
     Mesh(
         std::vector<glm::vec3>&& positions_,
@@ -53,13 +54,15 @@ public:
         std::vector<glm::vec2>&& texCoords_,
         std::vector<uint32_t>&& indices_,
         uint32_t matId_ = 0,
-        glm::mat4 model_ = glm::mat4(1.0f))
+        glm::mat4 model_ = glm::mat4(1.0f),
+        bool isStatic_ = true)
         : positions(std::move(positions_))
         , normals(std::move(normals_))
         , texCoords(std::move(texCoords_))
         , indices(std::move(indices_))
         , matId(matId_)
         , model(model_)
+        , isStatic(isStatic_)
     {
     }
 
@@ -69,20 +72,33 @@ public:
         std::vector<glm::vec2>& texCoords_,
         std::vector<uint32_t>& indices_,
         uint32_t matId_ = 0,
-        glm::mat4 model_ = glm::mat4(1.0f))
+        glm::mat4 model_ = glm::mat4(1.0f),
+        bool isStatic_ = true)
         : positions(std::move(positions_))
         , normals(std::move(normals_))
         , texCoords(std::move(texCoords_))
         , indices(std::move(indices_))
         , matId(matId_)
         , model(model_)
+        , isStatic(isStatic_)
     {
     }
 
     Mesh(
         std::vector<float>&& data,
         uint32_t n_vertices,
-        std::uint32_t matId_ = 0);
+        std::uint32_t matId_ = 0,
+        bool isStatic_ = true);
+
+    std::uint32_t numberOfVertices() const
+    {
+        return positions.size();
+    }
+
+    std::uint32_t numberOfFaces() const
+    {
+        return indices.size() / 3;
+    }
 
     void GLLoad();
 
@@ -90,6 +106,11 @@ public:
     void Draw(const std::vector<glm::mat4>& modelMatrices) const;
 
     void Release();
+
+    bool IsLoaded() const
+    {
+        return isLoaded;
+    }
 
 private:
     bool isLoaded = false;
