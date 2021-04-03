@@ -1,4 +1,5 @@
 #include "App.h"
+#include "Models/ImportScene.h"
 #include "ShaderProgram.h"
 
 App::App(const std::string& pathToConfig)
@@ -165,24 +166,26 @@ void App::loadModels()
 {
     //load textures
     std::vector<std::string> names = {
-        "container.jpg",
-        "awesomeface.png",
         "container2.png",
         "container2_specular.png",
-        "matrix.jpg"
     };
-    std::size_t i = 0;
     for (const std::string& name : names) {
         std::string path = std::string(config["dataPath"]) + "/textures/" + name;
-        textures.push_back(std::make_unique<Texture>(path));
-        textures[i++]->GLLoad();
+        textures[path] = std::make_unique<Texture>(path);
+        textures[path]->GLLoad();
+        GL_CHECK_ERRORS;
     }
 
     //create meshes
-    cubeMesh = createCube();
-    cubeMesh->GLSetup();
-    lightMesh = createCube();
-    lightMesh->GLSetup();
+    importSceneFromFile(
+        std::string(config["dataPath"]) + "/bunny/reconstruction/bun_zipper_res2.ply",
+        scene,
+        materials,
+        textures);
+    scene[0]->matId = 0;
+    for (std::size_t i = 0; i < scene.size(); ++i) {
+        scene[i]->GLSetup();
+    }
 }
 
 void App::mainLoop()
@@ -265,7 +268,6 @@ void App::mainLoop()
         //set light sources
         for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
             std::string idx = std::to_string(i);
-
             //set point light source
             lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(view * glm::vec4(pointLightPositions[i], 1.0f)));
             lightningProgram.SetUniform("pointLights[" + idx + "].color", glm::vec3(1.0f));
@@ -275,6 +277,7 @@ void App::mainLoop()
         }
 
         //set spotlight source
+        lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
         lightningProgram.SetUniform("spotLight.pointLight.position", glm::vec3(0.0f));
         lightningProgram.SetUniform("spotLight.pointLight.color", glm::vec3(1.0f));
         lightningProgram.SetUniform("spotLight.pointLight.constant", 1.0f);
@@ -283,25 +286,14 @@ void App::mainLoop()
         lightningProgram.SetUniform("spotLight.direction", glm::vec3(0.0f, 0.0f, -1.0f));
         lightningProgram.SetUniform("spotLight.cutOff", glm::cos(glm::radians(10.5f)));
         lightningProgram.SetUniform("spotLight.outerCutOff", glm::cos(glm::radians(14.5f)));
-        lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
 
         //set directional light source
         lightningProgram.SetUniform("dirLight.direction", glm::vec3(-0.2f, -1.0f, -0.3f));
         lightningProgram.SetUniform("dirLight.color", glm::vec3(0.5f));
 
         //set material
-        lightningProgram.SetUniform("material.ambient", glm::vec3(0.05f));
-        lightningProgram.SetUniform("material.diffuse", glm::vec3(0.8f));
-        lightningProgram.SetUniform("material.specular", glm::vec3(1.0f));
-        lightningProgram.SetUniform("material.shininess", 64.0f);
-        lightningProgram.SetUniform("hasDiffuseMap", true);
-        lightningProgram.SetUniform("diffuseMap", 0);
-        lightningProgram.SetUniform("hasSpecularMap", true);
-        lightningProgram.SetUniform("specularMap", 1);
-        glActiveTexture(GL_TEXTURE0);
-        textures[2]->GLBind();
-        glActiveTexture(GL_TEXTURE1);
-        textures[3]->GLBind();
+        uint32_t matId = scene[0]->matId;
+        materials[matId].Setup(lightningProgram, textures, GL_TEXTURE0, GL_TEXTURE1, 0, 1);
 
         std::vector<glm::mat4> modelMatrices(cubePositions.size());
         for (std::size_t i = 0; i < cubePositions.size(); ++i) {
@@ -310,13 +302,13 @@ void App::mainLoop()
             model = glm::translate(model, cubePositions[i]);
             float angle = 20.0f * i;
             model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            model = glm::scale(model, glm::vec3(10.0f));
             modelMatrices[i] = model;
         }
         //set uniforms with transforms
         lightningProgram.SetUniform("view", view);
         lightningProgram.SetUniform("projection", projection);
-        cubeMesh->Draw(modelMatrices);
-        cubeMesh->Draw(modelMatrices);
+        scene[0]->Draw(modelMatrices);
 
         glUseProgram(sourceProgram.ProgramObj); //StartUseShader
 
@@ -329,14 +321,14 @@ void App::mainLoop()
             //model
             model = glm::mat4(1.0f);
             model = glm::translate(model, pointLightPositions[i]);
-            model = glm::scale(model, glm::vec3(0.2f));
+            model = glm::scale(model, glm::vec3(2.0f));
             modelMatrices[i] = model;
         }
         //set uniforms with transforms
         sourceProgram.SetUniform("view", view);
         sourceProgram.SetUniform("projection", projection);
 
-        lightMesh->Draw(modelMatrices);
+        scene[0]->Draw(modelMatrices);
 
         glUseProgram(0); //StopUseShader
 
@@ -348,10 +340,11 @@ void App::mainLoop()
 
 void App::release()
 {
-    cubeMesh->Release();
-    lightMesh->Release();
-    for (std::unique_ptr<Texture>& texture : textures) {
-        texture->Release();
+    for (auto& mesh : scene) {
+        mesh->Release();
+    }
+    for (auto& item : textures) {
+        item.second->Release();
     }
     glfwTerminate();
 }

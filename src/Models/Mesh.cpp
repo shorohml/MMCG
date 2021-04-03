@@ -1,9 +1,64 @@
 #include "Models/Mesh.h"
 #include "common.h"
 
+void Material::Setup(
+    ShaderProgram& program,
+    std::unordered_map<std::string, std::unique_ptr<Texture>>& textures,
+    const GLenum diffuseTextureId,
+    const GLenum specularTextureId,
+    int diffuseIdx,
+    int specularIdx)
+{
+    program.SetUniform("hasDiffuseMap", hasDiffuseMap && (textures.count(diffuseMapPath) > 0));
+    program.SetUniform("hasSpecularMap", hasSpecularMap && (textures.count(specularMapPath) > 0));
+    if (hasDiffuseMap && textures.count(diffuseMapPath)) {
+        glActiveTexture(diffuseTextureId);
+        GL_CHECK_ERRORS;
+        textures[diffuseMapPath]->GLBind();
+        GL_CHECK_ERRORS;
+        program.SetUniform("diffuseMap", diffuseIdx);
+        GL_CHECK_ERRORS;
+    }
+    if (hasSpecularMap && textures.count(specularMapPath)) {
+        glActiveTexture(specularTextureId);
+        GL_CHECK_ERRORS;
+        textures[specularMapPath]->GLBind();
+        GL_CHECK_ERRORS;
+        program.SetUniform("specularMap", specularIdx);
+        GL_CHECK_ERRORS;
+    }
+    program.SetUniform("material.ambient", ambient);
+    GL_CHECK_ERRORS;
+    program.SetUniform("material.diffuse", diffuse);
+    GL_CHECK_ERRORS;
+    program.SetUniform("material.specular", specular);
+    GL_CHECK_ERRORS;
+    program.SetUniform("material.shininess", shininess);
+    GL_CHECK_ERRORS;
+}
+
+void Material::SetMaps(
+    const std::string& diffuseMapPath_,
+    const std::string& specularMapPath_,
+    std::unordered_map<std::string, std::unique_ptr<Texture>> &textures)
+{
+    if (textures.count(diffuseMapPath_)) {
+        hasDiffuseMap = true;
+        diffuseMapPath = diffuseMapPath_;
+        diffuseMap = textures[diffuseMapPath]->GetTextureID();
+    }
+    if (textures.count(specularMapPath_)) {
+        hasSpecularMap = true;
+        specularMapPath = specularMapPath_;
+        specularMap = textures[specularMapPath]->GetTextureID();
+    }
+}
+
 Mesh::Mesh(
     std::vector<float>&& data,
-    uint32_t nVertices)
+    uint32_t nVertices,
+    std::uint32_t matId_)
+    : matId(matId_)
 {
     if (data.size() != nVertices * 8) {
         throw std::runtime_error("Data array size should be nVertices * 8");
@@ -112,7 +167,7 @@ void Mesh::Draw() const
 }
 
 //draw with instancing - select vertexPhongInstanced.glsl vertex shader
-void Mesh::Draw(const std::vector<glm::mat4> &modelMatrices) const
+void Mesh::Draw(const std::vector<glm::mat4>& modelMatrices) const
 {
     glBindVertexArray(VAO);
     GL_CHECK_ERRORS;

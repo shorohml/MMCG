@@ -48,10 +48,11 @@ private:
     //3. Put instance of this class here
     AppState state; //we need to separate this into struct because of C-style GLFW callbacks
 
-    glm::vec3 lightPos = glm::vec3(1.2f, 1.0f, 2.0f);
-    std::vector<std::unique_ptr<Texture>> textures; // textures and mesh
-    std::unique_ptr<Mesh> cubeMesh;
-    std::unique_ptr<Mesh> lightMesh;
+    std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
+    std::unordered_map<uint32_t, Material> materials = {
+        {0, Material()}
+    }; //add default material
+    std::vector<std::unique_ptr<Mesh>> scene;
 
     nlohmann::json config; //application config
     GLFWwindow* window; //window
