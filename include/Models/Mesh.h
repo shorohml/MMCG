@@ -33,10 +33,9 @@ public:
         int specularIdx);
 
     void SetMaps(
-        const std::string &diffuseMapPath_,
-        const std::string &specularMapPath_,
-        std::unordered_map<std::string, std::unique_ptr<Texture>> &textures
-    );
+        const std::string& diffuseMapPath_,
+        const std::string& specularMapPath_,
+        std::unordered_map<std::string, std::unique_ptr<Texture>>& textures);
 };
 
 class Mesh {
@@ -46,18 +45,21 @@ public:
     std::vector<glm::vec2> texCoords;
     std::vector<uint32_t> indices;
     std::uint32_t matId;
+    glm::mat4 model;
 
     Mesh(
         std::vector<glm::vec3>&& positions_,
         std::vector<glm::vec3>&& normals_,
         std::vector<glm::vec2>&& texCoords_,
         std::vector<uint32_t>&& indices_,
-        uint32_t matId_ = 0)
+        uint32_t matId_ = 0,
+        glm::mat4 model_ = glm::mat4(1.0f))
         : positions(std::move(positions_))
         , normals(std::move(normals_))
         , texCoords(std::move(texCoords_))
         , indices(std::move(indices_))
         , matId(matId_)
+        , model(model_)
     {
     }
 
@@ -66,12 +68,14 @@ public:
         std::vector<glm::vec3>& normals_,
         std::vector<glm::vec2>& texCoords_,
         std::vector<uint32_t>& indices_,
-        uint32_t matId_ = 0)
+        uint32_t matId_ = 0,
+        glm::mat4 model_ = glm::mat4(1.0f))
         : positions(std::move(positions_))
         , normals(std::move(normals_))
         , texCoords(std::move(texCoords_))
         , indices(std::move(indices_))
         , matId(matId_)
+        , model(model_)
     {
     }
 
@@ -80,7 +84,7 @@ public:
         uint32_t n_vertices,
         std::uint32_t matId_ = 0);
 
-    void GLSetup();
+    void GLLoad();
 
     void Draw() const;
     void Draw(const std::vector<glm::mat4>& modelMatrices) const;

@@ -20,6 +20,7 @@ void fromAiMesh(
     const std::string& directory,
     const aiMesh* assimpMesh,
     const aiScene* assimpScene,
+    const glm::mat4& model,
     std::vector<std::unique_ptr<Mesh>>& scene,
     std::unordered_map<uint32_t, Material>& materials,
     std::unordered_map<std::string, std::unique_ptr<Texture>>& textures,
@@ -77,7 +78,6 @@ void fromAiMesh(
             path = directory + "/" + path;
             if (textures.count(path) == 0) {
                 textures[path] = std::make_unique<Texture>(path);
-                textures[path]->GLLoad();
             }
             material.hasDiffuseMap = true;
             material.diffuseMap = textures[path]->GetTextureID();
@@ -91,7 +91,6 @@ void fromAiMesh(
             path = directory + "/" + path;
             if (textures.count(path) == 0) {
                 textures[path] = std::make_unique<Texture>(path);
-                textures[path]->GLLoad();
             }
             material.hasSpecularMap = true;
             material.specularMap = textures[path]->GetTextureID();
@@ -99,7 +98,52 @@ void fromAiMesh(
         }
         materials[material.id] = material;
     }
-    scene.push_back(std::make_unique<Mesh>(positions, normals, texCoords, indices, matId));
+    scene.push_back(std::make_unique<Mesh>(positions, normals, texCoords, indices, matId, model));
+}
+
+void fromAiNode(
+    const std::string& directory,
+    const aiNode* node,
+    const aiScene* assimpScene,
+    const glm::mat4& parentModel,
+    std::vector<std::unique_ptr<Mesh>>& scene,
+    std::unordered_map<uint32_t, Material>& materials,
+    std::unordered_map<std::string, std::unique_ptr<Texture>>& textures,
+    uint32_t& maxMatId)
+{
+    aiMatrix4x4 assimpTransform = node->mTransformation;
+    glm::mat4 transform(
+        assimpTransform.a1, assimpTransform.a2, assimpTransform.a3, assimpTransform.a4,
+        assimpTransform.b1, assimpTransform.b2, assimpTransform.b3, assimpTransform.b4,
+        assimpTransform.c1, assimpTransform.c2, assimpTransform.c3, assimpTransform.c4,
+        assimpTransform.d1, assimpTransform.d2, assimpTransform.d3, assimpTransform.d4);
+    glm::mat4 model = transform * parentModel;
+    // process all the node's meshes (if any)
+    for (unsigned int i = 0; i < node->mNumMeshes; i++) {
+        aiMesh* assimpMesh = assimpScene->mMeshes[node->mMeshes[i]];
+        fromAiMesh(
+            directory,
+            assimpMesh,
+            assimpScene,
+            model,
+            scene,
+            materials,
+            textures,
+            maxMatId);
+        ++maxMatId;
+    }
+    // then do the same for each of its children
+    for (unsigned int i = 0; i < node->mNumChildren; i++) {
+        fromAiNode(
+            directory,
+            node->mChildren[i],
+            assimpScene,
+            model,
+            scene,
+            materials,
+            textures,
+            maxMatId);
+    }
 }
 
 }
@@ -125,15 +169,13 @@ void importSceneFromFile(
             maxMatId = item.first;
         }
     }
-    for (uint32_t i = 0; i < assimpScene->mNumMeshes; ++i) {
-        aiMesh* assimpMesh = assimpScene->mMeshes[i];
-        fromAiMesh(
-            directory,
-            assimpMesh,
-            assimpScene,
-            scene,
-            materials,
-            textures,
-            maxMatId++);
-    }
+    fromAiNode(
+        directory,
+        assimpScene->mRootNode,
+        assimpScene,
+        glm::mat4(1.0f),
+        scene,
+        materials,
+        textures,
+        maxMatId);
 }

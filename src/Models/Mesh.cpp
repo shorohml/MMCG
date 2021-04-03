@@ -27,9 +27,9 @@ void Material::Setup(
         program.SetUniform("specularMap", specularIdx);
         GL_CHECK_ERRORS;
     }
-    program.SetUniform("material.ambient", ambient);
+    program.SetUniform("material.ambient", glm::vec3(0.05f));
     GL_CHECK_ERRORS;
-    program.SetUniform("material.diffuse", diffuse);
+    program.SetUniform("material.diffuse", glm::vec3(0.8f));
     GL_CHECK_ERRORS;
     program.SetUniform("material.specular", specular);
     GL_CHECK_ERRORS;
@@ -86,7 +86,7 @@ Mesh::Mesh(
     }
 }
 
-void Mesh::GLSetup()
+void Mesh::GLLoad()
 {
     //generate buffers
     glGenVertexArrays(1, &VAO);

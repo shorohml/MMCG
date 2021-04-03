@@ -10,7 +10,7 @@ App::App(const std::string& pathToConfig)
     state.camera.MouseSensitivity = config["MouseSensitivity"];
     state.lastX = static_cast<float>(config["width"]) / 2.0f;
     state.lastY = static_cast<float>(config["height"]) / 2.0f;
-    state.camera.MovementSpeed = 20.0f * 2.0f;
+    state.camera.MovementSpeed = 50.0f * 2.0f;
 }
 
 int App::initGL() const
@@ -165,27 +165,13 @@ void App::doCameraMovement()
 
 void App::loadModels()
 {
-    //load textures
-    std::vector<std::string> names = {
-        "container2.png",
-        "container2_specular.png",
-    };
-    for (const std::string& name : names) {
-        std::string path = std::string(config["dataPath"]) + "/textures/" + name;
-        textures[path] = std::make_unique<Texture>(path);
-        textures[path]->GLLoad();
-        GL_CHECK_ERRORS;
-    }
-
-    //create meshes
+    //Load sponza scene
     importSceneFromFile(
         std::string(config["dataPath"]) + "/sponza/sponza.obj",
         scene,
         materials,
         textures);
-    for (std::size_t i = 0; i < scene.size(); ++i) {
-        scene[i]->GLSetup();
-    }
+    scene.push_back(createCube());
 }
 
 void App::mainLoop()
@@ -198,7 +184,7 @@ void App::mainLoop()
     ShaderProgram lightningProgram(shaders);
     GL_CHECK_ERRORS;
 
-    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexLightSource_ins.glsl";
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexLightSource.glsl";
     shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentLightSource.glsl";
     ShaderProgram sourceProgram(shaders);
     GL_CHECK_ERRORS;
@@ -220,8 +206,15 @@ void App::mainLoop()
 
     std::vector<glm::vec3> pointLightPositions(5);
     for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
-        pointLightPositions[i] = glm::vec3((float)(i - 2.5f) * 50.0f, 50.0f, 0.0f);
+        pointLightPositions[i] = glm::vec3((float)(i - 2.5f) * 300.0f, 50.0f, 0.0f);
     }
+    std::vector<glm::vec3> colors = {
+        glm::vec3(1.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f),
+        glm::vec3(1.0f, 1.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 1.0f),
+    };
 
     //цикл обработки сообщений и отрисовки сцены каждый кадр
     float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
@@ -249,7 +242,7 @@ void App::mainLoop()
         glm::mat4 view = state.camera.GetViewMatrix();
         //projection
         glm::mat4 projection;
-        projection = glm::perspective(glm::radians(state.camera.Zoom), ratio, 1.0f, 2000.0f);
+        projection = glm::perspective(glm::radians(state.camera.Zoom), ratio, 1.0f, 3000.0f);
 
         //set light sources
         for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
@@ -257,7 +250,7 @@ void App::mainLoop()
             //set point light source
             glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
             lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
-            lightningProgram.SetUniform("pointLights[" + idx + "].color", glm::vec3(1.0f));
+            lightningProgram.SetUniform("pointLights[" + idx + "].color", colors[i]);
             lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
             lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
             lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
@@ -277,44 +270,36 @@ void App::mainLoop()
         //set directional light source
         glm::vec4 direction = glm::vec4(-0.2f, -1.0f, -0.3f, 0.0f);
         lightningProgram.SetUniform("dirLight.direction", glm::vec3(view * direction));
-        lightningProgram.SetUniform("dirLight.color", glm::vec3(0.5f));
+        lightningProgram.SetUniform("dirLight.color", glm::vec3(0.0f));
 
-        for (const auto& mesh : scene) {
+        lightningProgram.SetUniform("view", view);
+        lightningProgram.SetUniform("projection", projection);
+        for (std::size_t i = 0; i < scene.size() - 1; ++i) {
             //set material
-            uint32_t matId = mesh->matId;
+            uint32_t matId = scene[i]->matId;
             materials[matId].Setup(lightningProgram, textures, GL_TEXTURE0, GL_TEXTURE1, 0, 1);
             //set uniforms with transforms
-            lightningProgram.SetUniform("model", model);
-            lightningProgram.SetUniform("view", view);
-            lightningProgram.SetUniform("projection", projection);
-            lightningProgram.SetUniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(view * model))));
-            mesh->Draw();
+            lightningProgram.SetUniform("model", scene[i]->model);
+            lightningProgram.SetUniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(view * scene[i]->model))));
+            scene[i]->Draw();
         }
 
         glUseProgram(sourceProgram.ProgramObj); //StartUseShader
 
-        //color
-        sourceProgram.SetUniform("lightColor", glm::vec3(1.0));
-
-        glm::vec3 mean(0.0f);
-        for (std::size_t i = 0; i < scene[0]->positions.size(); ++i) {
-            mean += scene[0]->positions[i];
-        }
-        mean /= scene[0]->positions.size();
-
         //draw light sources
-        std::vector<glm::mat4> modelMatrices(pointLightPositions.size());
         for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
             //model
             model = glm::mat4(1.0f);
-            model = glm::translate(model, pointLightPositions[i] - mean);
-            modelMatrices[i] = model;
+            model = glm::translate(model, pointLightPositions[i]);
+            model = glm::scale(model, glm::vec3(10.0f));
+            //set uniforms with transforms
+            sourceProgram.SetUniform("model", model);
+            sourceProgram.SetUniform("view", view);
+            sourceProgram.SetUniform("projection", projection);
+            //color
+            sourceProgram.SetUniform("lightColor", colors[i]);
+            scene[scene.size() - 1]->Draw();
         }
-        //set uniforms with transforms
-        sourceProgram.SetUniform("view", view);
-        sourceProgram.SetUniform("projection", projection);
-
-        scene[0]->Draw(modelMatrices);
 
         glUseProgram(0); //StopUseShader
 
@@ -337,11 +322,17 @@ void App::release()
 
 int App::Run()
 {
+    loadModels();
     int result = createWindow();
     if (result != 0) {
         return result;
     }
-    loadModels();
+    for (std::size_t i = 0; i < scene.size(); ++i) {
+        scene[i]->GLLoad();
+    }
+    for (auto& item : textures) {
+        item.second->GLLoad();
+    }
     mainLoop();
     release();
     return 0;

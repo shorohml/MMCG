@@ -25,7 +25,7 @@ public:
 
     AppState()
         : keys(1024, 0)
-        , camera(glm::vec3(-125.0f, 6.25f, 0.0f))
+        , camera(glm::vec3(-125.0f, 150.0f, 0.0f))
     {
     }
 };
