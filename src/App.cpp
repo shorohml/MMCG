@@ -250,7 +250,9 @@ void App::mainLoop()
             //set point light source
             glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
             lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
-            lightningProgram.SetUniform("pointLights[" + idx + "].color", colors[i]);
+            lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.05f * colors[i]);
+            lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.8f * colors[i]);
+            lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(1.0f));
             lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
             lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
             lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
@@ -259,7 +261,9 @@ void App::mainLoop()
         //set spotlight source
         lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
         lightningProgram.SetUniform("spotLight.pointLight.position", glm::vec3(0.0f));
-        lightningProgram.SetUniform("spotLight.pointLight.color", glm::vec3(1.0f));
+        lightningProgram.SetUniform("spotLight.pointLight.ambient", glm::vec3(0.05f));
+        lightningProgram.SetUniform("spotLight.pointLight.diffuse", glm::vec3(0.8f));
+        lightningProgram.SetUniform("spotLight.pointLight.specular", glm::vec3(1.0f));
         lightningProgram.SetUniform("spotLight.pointLight.constant", 1.0f);
         lightningProgram.SetUniform("spotLight.pointLight.linear", 0.0014f);
         lightningProgram.SetUniform("spotLight.pointLight.quadratic", 0.000007f);
@@ -270,7 +274,9 @@ void App::mainLoop()
         //set directional light source
         glm::vec4 direction = glm::vec4(-0.2f, -1.0f, -0.3f, 0.0f);
         lightningProgram.SetUniform("dirLight.direction", glm::vec3(view * direction));
-        lightningProgram.SetUniform("dirLight.color", glm::vec3(0.0f));
+        lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.0f));
+        lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.0f));
+        lightningProgram.SetUniform("dirLight.specular", glm::vec3(0.0f));
 
         lightningProgram.SetUniform("view", view);
         lightningProgram.SetUniform("projection", projection);

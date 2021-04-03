@@ -27,9 +27,9 @@ void Material::Setup(
         program.SetUniform("specularMap", specularIdx);
         GL_CHECK_ERRORS;
     }
-    program.SetUniform("material.ambient", glm::vec3(0.05f));
+    program.SetUniform("material.ambient", ambient);
     GL_CHECK_ERRORS;
-    program.SetUniform("material.diffuse", glm::vec3(0.8f));
+    program.SetUniform("material.diffuse", diffuse);
     GL_CHECK_ERRORS;
     program.SetUniform("material.specular", specular);
     GL_CHECK_ERRORS;
