@@ -2,8 +2,8 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
-#include <vector>
 #include <unordered_set>
+#include <vector>
 
 namespace {
 
@@ -45,7 +45,10 @@ void fromAiMesh(
     std::vector<glm::vec3> normals(assimpMesh->mNumVertices);
     std::vector<glm::vec2> texCoords(assimpMesh->mNumVertices, glm::vec2(0.0f));
     std::vector<uint32_t> indices(assimpMesh->mNumFaces * 3);
+    std::vector<glm::vec3> tangents;
+    std::vector<glm::vec3> bitangents;
     bool hasTexCoors = assimpMesh->mTextureCoords[0];
+    bool hasTangentsBitangents = assimpMesh->HasTangentsAndBitangents();
 
     //load all geometry data from Assimp aiMesh
     for (std::size_t i = 0; i < assimpMesh->mNumVertices; ++i) {
@@ -53,6 +56,10 @@ void fromAiMesh(
         normals[i] = ai2glm3D(assimpMesh->mNormals[i]);
         if (hasTexCoors) {
             texCoords[i] = ai2glm2D(assimpMesh->mTextureCoords[0][i]);
+        }
+        if (hasTangentsBitangents) {
+            tangents.push_back(ai2glm3D(assimpMesh->mTangents[i]));
+            bitangents.push_back(ai2glm3D(assimpMesh->mBitangents[i]));
         }
     }
     for (std::size_t i = 0; i < assimpMesh->mNumFaces; i++) {
@@ -66,7 +73,11 @@ void fromAiMesh(
     if (assimpScene->HasMaterials()) {
         matId = maxMatId + 1 + assimpMesh->mMaterialIndex;
     }
-    scene.push_back(std::make_unique<Mesh>(positions, normals, texCoords, indices, matId, model));
+    if (!hasTangentsBitangents) {
+        scene.push_back(std::make_unique<Mesh>(positions, normals, texCoords, indices, matId, model));
+    } else {
+        scene.push_back(std::make_unique<Mesh>(positions, normals, texCoords, indices, tangents, bitangents, matId, model));
+    }
 }
 
 void fromAiNode(
@@ -116,7 +127,7 @@ void importSceneFromFile(
     std::cout << "Loading scene from disk..." << std::endl;
     Assimp::Importer importer;
     const aiScene* assimpScene = importer.ReadFile(path,
-        aiProcess_JoinIdenticalVertices | aiProcess_GenNormals | aiProcess_Triangulate | aiProcess_FlipUVs);
+        aiProcess_JoinIdenticalVertices | aiProcess_GenNormals | aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
     if (!assimpScene || assimpScene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !assimpScene->mRootNode) {
         throw std::runtime_error(importer.GetErrorString());
@@ -136,9 +147,13 @@ void importSceneFromFile(
         aiMaterial* assimpMaterial = assimpScene->mMaterials[i];
 
         aiColor3D color(0.f, 0.f, 0.f);
+        aiString name;
         float shininess = 32.0f;
 
         //load material properties
+        assimpMaterial->Get(AI_MATKEY_NAME, name);
+        material.name = std::string(name.C_Str());
+
         assimpMaterial->Get(AI_MATKEY_COLOR_DIFFUSE, color);
         material.diffuse = glm::vec3(color.r, color.b, color.g);
 
@@ -178,6 +193,19 @@ void importSceneFromFile(
             material.specularMap = textures[path]->GetTextureID();
             material.specularMapPath = path;
         }
+        //normal map
+        if (assimpMaterial->GetTextureCount(aiTextureType_HEIGHT)) {
+            aiString str;
+            assimpMaterial->GetTexture(aiTextureType_HEIGHT, 0, &str);
+            std::string path(str.C_Str());
+            path = addToDir(directory, path);
+            if (textures.count(path) == 0) {
+                textures[path] = std::make_unique<Texture>(path);
+            }
+            material.hasNormalMap = true;
+            material.normalMap = textures[path]->GetTextureID();
+            material.normalMapPath = path;
+        }
         materials[material.id] = material;
     }
     fromAiNode(
@@ -189,6 +217,7 @@ void importSceneFromFile(
 }
 
 //All dinamic meshes will be moved from old scene!
+//For now assume all static meshes have tangents and bitangents
 std::vector<std::unique_ptr<Mesh>> unifyStaticMeshes(
     std::vector<std::unique_ptr<Mesh>>& scene,
     const std::unordered_map<uint32_t, Material>& materials)
@@ -225,6 +254,8 @@ std::vector<std::unique_ptr<Mesh>> unifyStaticMeshes(
         std::vector<glm::vec3> positions(numVertices);
         std::vector<glm::vec3> normals(numVertices);
         std::vector<glm::vec2> texCoords(numVertices);
+        std::vector<glm::vec3> tangents(numVertices);
+        std::vector<glm::vec3> bitangents(numVertices);
         std::vector<uint32_t> indices(numFaces * 3);
         std::uint32_t vertexShift = 0;
         std::uint32_t faceShift = 0;
@@ -233,18 +264,19 @@ std::vector<std::unique_ptr<Mesh>> unifyStaticMeshes(
                 positions[vertexShift + j] = scene[i]->model * glm::vec4(scene[i]->positions[j], 1.0f);
                 normals[vertexShift + j] = scene[i]->model * glm::vec4(scene[i]->normals[j], 0.0f);
                 texCoords[vertexShift + j] = scene[i]->texCoords[j];
+                tangents[vertexShift + j] = scene[i]->tangents[j];
+                bitangents[vertexShift + j] = scene[i]->bitangents[j];
             }
-            for (std::size_t j = 0; j < scene[i]->numberOfFaces()*3; ++j) {
+            for (std::size_t j = 0; j < scene[i]->numberOfFaces() * 3; ++j) {
                 indices[faceShift + j] = scene[i]->indices[j] + vertexShift;
             }
             vertexShift += scene[i]->numberOfVertices();
-            faceShift += scene[i]->numberOfFaces()*3;
+            faceShift += scene[i]->numberOfFaces() * 3;
         }
         newScene.push_back(std::make_unique<Mesh>(
-            positions, normals, texCoords, indices, item.first, glm::mat4(1.0f)
-        ));
+            positions, normals, texCoords, indices, tangents, bitangents, item.first, glm::mat4(1.0f)));
     }
-    for (std::size_t i: skipped) {
+    for (std::size_t i : skipped) {
         newScene.push_back(std::move(scene[i]));
     }
     return newScene;

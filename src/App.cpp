@@ -95,6 +95,11 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             state->isFlashlightOn = !(state->isFlashlightOn);
         }
         break;
+    case GLFW_KEY_N: //turn flashlight on/off
+        if (action == GLFW_PRESS) {
+            state->visualizeNormalsWithColor = !(state->visualizeNormalsWithColor);
+        }
+        break;
     default:
         if (action == GLFW_PRESS) {
             (state->keys)[key] = true;
@@ -210,28 +215,38 @@ void App::mainLoop()
         pointLightPositions[i] = glm::vec3((float)(i - 2.5f) * 300.0f, 50.0f, 0.0f);
     }
     std::vector<glm::vec3> colors = {
-        glm::vec3(1.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        glm::vec3(0.0f, 0.0f, 1.0f),
-        glm::vec3(1.0f, 1.0f, 0.0f),
-        glm::vec3(0.0f, 1.0f, 1.0f),
+        glm::vec3(1.0f),
+        glm::vec3(1.0f),
+        glm::vec3(1.0f),
+        glm::vec3(1.0f),
+        glm::vec3(1.0f)
     };
 
     //цикл обработки сообщений и отрисовки сцены каждый кадр
     float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
     uint32_t frameCount = 0;
     float deltaSum = 0.0f;
+    bool firstFrame = true;
     while (!glfwWindowShouldClose(window)) {
         //per-frame time logic
         float currentFrame = glfwGetTime();
-        state.deltaTime = currentFrame - state.lastFrame;
-        state.lastFrame = currentFrame;
-
-        //compute FPS
-        deltaSum += state.deltaTime;
         ++frameCount;
+        if (firstFrame) {
+            //we didn't draw anyting yet, set deltaTime to 0.0f
+            state.lastFrame = currentFrame;
+            state.deltaTime = 0.0f;
+            firstFrame = false;
+            frameCount = 0;
+        } else {
+            //compute deltaTime for last frame
+            state.deltaTime = currentFrame - state.lastFrame;
+            state.lastFrame = currentFrame;
+        }
+
+        //compute and draw FPS
+        deltaSum += state.deltaTime;
         if (deltaSum >= printEvery) {
-            std::uint32_t fps = round(static_cast<float>(frameCount) / deltaSum);
+            float fps = static_cast<float>(frameCount) / deltaSum;
             std::string title = std::string(config["name"]) + " FPS: " + std::to_string(fps);
             glfwSetWindowTitle(window, title.c_str());
             deltaSum = 0.0f;
@@ -257,6 +272,8 @@ void App::mainLoop()
         //projection
         glm::mat4 projection;
         projection = glm::perspective(glm::radians(state.camera.Zoom), ratio, 1.0f, 3000.0f);
+
+        lightningProgram.SetUniform("visualizeNormalsWithColor", state.visualizeNormalsWithColor);
 
         //set light sources
         for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
@@ -297,7 +314,15 @@ void App::mainLoop()
         for (std::size_t i = 0; i < scene.size() - 1; ++i) {
             //set material
             uint32_t matId = scene[i]->matId;
-            materials[matId].Setup(lightningProgram, textures, GL_TEXTURE0, GL_TEXTURE1, 0, 1);
+            materials[matId].Setup(
+                lightningProgram,
+                textures,
+                GL_TEXTURE0,
+                GL_TEXTURE1,
+                GL_TEXTURE2,
+                0,
+                1,
+                2);
             //set uniforms with transforms
             lightningProgram.SetUniform("model", scene[i]->model);
             lightningProgram.SetUniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(view * scene[i]->model))));

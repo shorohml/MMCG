@@ -21,6 +21,7 @@ public:
     std::vector<bool> keys; //массив состояний кнопок - нажата/не нажата
     bool g_captureMouse = true; //Мышка захвачена нашим приложением или нет?
     bool isFlashlightOn = false; //Is flashlight on?
+    bool visualizeNormalsWithColor = false; //normals visualization (with color)
     Camera camera; //camera
 
     AppState()

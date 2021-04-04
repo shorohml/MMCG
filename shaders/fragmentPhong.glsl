@@ -1,13 +1,17 @@
 #version 330 core
-in vec3 normal;
-in vec3 fragPos;
-in vec2 texCoords;
 
 struct Material {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
     float shininess;
+
+    bool hasDiffuseMap;
+    sampler2D diffuseMap;
+    bool hasSpecularMap;
+    sampler2D specularMap;
+    bool hasNormalMap;
+    sampler2D normalMap;
 };
 
 struct DirLight {
@@ -45,12 +49,21 @@ uniform DirLight dirLight;
 uniform SpotLight spotLight;
 uniform bool spotlightOn;
 
-//material
 uniform Material material;
-uniform bool hasDiffuseMap;
-uniform sampler2D diffuseMap;
-uniform bool hasSpecularMap;
-uniform sampler2D specularMap;
+
+uniform bool visualizeNormalsWithColor;
+
+in VS_OUT
+{
+    vec3 normal;
+    vec3 fragPos;
+    vec2 texCoords;
+    vec3 dirLightDirection;
+    vec3 pointLightPositions[NR_POINT_LIGHTS];
+    vec3 spotlightPosition;
+    vec3 spotlightDirection;
+}
+fsIn;
 
 out vec4 FragColor;
 
@@ -77,13 +90,14 @@ vec3 calcSpecular(
 
 vec3 calcDirLight(
     DirLight light, //light
+    vec3 direction, //use this instead of value from uniform for normal map optimization
     Material material, //material
     vec3 diffuseMapVal, //sampled from diffuse map
     vec3 specularMapVal, //sampled from specular map
     vec3 norm, //normal
     vec3 viewDir) //direction from fragment to viewer (normalized)
 {
-    vec3 lightDir = normalize(-light.direction);
+    vec3 lightDir = normalize(-direction);
 
     //ambient
     vec3 ambient = light.ambient * material.ambient * diffuseMapVal;
@@ -99,14 +113,16 @@ vec3 calcDirLight(
 
 float calcAttenuation(
     PointLight light, //light
+    vec3 position, //use this instead of value from uniform for normal map optimization
     vec3 fragPos) //fragment postion in View space
 {
-    float dist = length(light.position - fragPos);
+    float dist = length(position - fragPos);
     return 1.0 / (light.constant + light.linear * dist + light.quadratic * dist * dist);
 }
 
 vec3 calcPointLight(
     PointLight light, //light
+    vec3 position, //use this instead of value from uniform for normal map optimization
     Material material, //material
     vec3 diffuseMapVal, //sampled from diffuse map
     vec3 specularMapVal, //sampled from specular map
@@ -114,18 +130,19 @@ vec3 calcPointLight(
     vec3 fragPos, //fragment postion in View space
     vec3 viewDir) //direction from fragment to viewer (normalized)
 {
-    vec3 lightDir = normalize(light.position - fragPos);
+    vec3 lightDir = normalize(position - fragPos);
 
     //attenuation
     float attenuation = calcAttenuation(
         light,
+        position,
         fragPos);
 
     //ambient
     vec3 ambient = light.ambient * material.ambient * diffuseMapVal;
 
     //diffuse
-    vec3 diffuse =  light.diffuse * calcDiffuse(lightDir, norm, material.diffuse * diffuseMapVal);
+    vec3 diffuse = light.diffuse * calcDiffuse(lightDir, norm, material.diffuse * diffuseMapVal);
 
     //specular
     vec3 specular = light.specular * calcSpecular(lightDir, norm, viewDir, specularMapVal * material.specular, material);
@@ -135,6 +152,8 @@ vec3 calcPointLight(
 
 vec3 calcSpotLight(
     SpotLight light, //light
+    vec3 position, //use this instead of value from uniform for normal map optimization
+    vec3 direction, //use this instead of value from uniform for normal map optimization
     Material material, //material
     vec3 diffuseMapVal, //sampled from diffuse map
     vec3 specularMapVal, //sampled from specular map
@@ -142,19 +161,20 @@ vec3 calcSpotLight(
     vec3 fragPos, //fragment postion in View space
     vec3 viewDir) //direction from fragment to viewer (normalized)
 {
-    vec3 lightDir = normalize(light.pointLight.position - fragPos);
+    vec3 lightDir = normalize(position - fragPos);
 
     //calculate intensity:
     //0 if fragment is outside of spotlight
     //(0, 1) in outer 'ring' to smooth spotlight
     //1 inside of spotlight
-    float theta = dot(lightDir, normalize(-light.direction));
+    float theta = dot(lightDir, normalize(-direction));
     float epsilon = light.outerCutOff - light.cutOff;
     float intensity = clamp((light.outerCutOff - theta) / epsilon, 0.0, 1.0);
 
     //attenuation
     float attenuation = calcAttenuation(
         light.pointLight,
+        position,
         fragPos);
 
     //ambient
@@ -174,35 +194,49 @@ vec3 calcSpotLight(
 
 void main()
 {
-    vec3 norm = normalize(normal);
-    vec3 viewDir = normalize(-fragPos);
+    vec3 normal;
+    if (material.hasNormalMap) {
+        normal = texture(material.normalMap, fsIn.texCoords).rgb;
+        normal = normal * 2.0 - 1.0;
+    } else {
+        normal = normalize(fsIn.normal);
+    }
+
+    if (visualizeNormalsWithColor) {
+        FragColor = vec4(normal*0.5 + 0.5, 1.0f);
+        return;
+    }
+
+    vec3 viewDir = normalize(-fsIn.fragPos);
     vec3 diffuseMapVal = vec3(1.0);
-    if (hasDiffuseMap) {
-        diffuseMapVal = texture(diffuseMap, texCoords).rgb;
+    if (material.hasDiffuseMap) {
+        diffuseMapVal = texture(material.diffuseMap, fsIn.texCoords).rgb;
     }
     vec3 specularMapVal = vec3(1.0);
-    if (hasSpecularMap) {
-        specularMapVal = texture(specularMap, texCoords).rgb;
+    if (material.hasSpecularMap) {
+        specularMapVal = texture(material.specularMap, fsIn.texCoords).rgb;
     }
 
     //directional light
     vec3 color = calcDirLight(
         dirLight,
+        fsIn.dirLightDirection,
         material,
         diffuseMapVal,
         specularMapVal,
-        norm,
+        normal,
         viewDir);
 
     //point light
     for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
         color += calcPointLight(
             pointLights[i],
+            fsIn.pointLightPositions[i],
             material,
             diffuseMapVal,
             specularMapVal,
-            norm,
-            fragPos,
+            normal,
+            fsIn.fragPos,
             viewDir);
     }
 
@@ -210,11 +244,13 @@ void main()
         //spotlight
         color += calcSpotLight(
             spotLight,
+            fsIn.spotlightPosition,
+            fsIn.spotlightDirection,
             material,
             diffuseMapVal,
             specularMapVal,
-            norm,
-            fragPos,
+            normal,
+            fsIn.fragPos,
             viewDir);
     }
 

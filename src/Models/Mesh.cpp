@@ -6,17 +6,20 @@ void Material::Setup(
     std::unordered_map<std::string, std::unique_ptr<Texture>>& textures,
     const GLenum diffuseTextureId,
     const GLenum specularTextureId,
+    const GLenum normalTextureId,
     int diffuseIdx,
-    int specularIdx)
+    int specularIdx,
+    int normalIdx)
 {
-    program.SetUniform("hasDiffuseMap", hasDiffuseMap && (textures.count(diffuseMapPath) > 0));
-    program.SetUniform("hasSpecularMap", hasSpecularMap && (textures.count(specularMapPath) > 0));
+    program.SetUniform("material.hasDiffuseMap", hasDiffuseMap && (textures.count(diffuseMapPath) > 0));
+    program.SetUniform("material.hasSpecularMap", hasSpecularMap && (textures.count(specularMapPath) > 0));
+    program.SetUniform("material.hasNormalMap", hasNormalMap && (textures.count(normalMapPath) > 0));
     if (hasDiffuseMap && textures.count(diffuseMapPath)) {
         glActiveTexture(diffuseTextureId);
         GL_CHECK_ERRORS;
         textures[diffuseMapPath]->GLBind();
         GL_CHECK_ERRORS;
-        program.SetUniform("diffuseMap", diffuseIdx);
+        program.SetUniform("material.diffuseMap", diffuseIdx);
         GL_CHECK_ERRORS;
     }
     if (hasSpecularMap && textures.count(specularMapPath)) {
@@ -24,7 +27,15 @@ void Material::Setup(
         GL_CHECK_ERRORS;
         textures[specularMapPath]->GLBind();
         GL_CHECK_ERRORS;
-        program.SetUniform("specularMap", specularIdx);
+        program.SetUniform("material.specularMap", specularIdx);
+        GL_CHECK_ERRORS;
+    }
+    if (hasNormalMap && (textures.count(normalMapPath) > 0)) {
+        glActiveTexture(normalTextureId);
+        GL_CHECK_ERRORS;
+        textures[normalMapPath]->GLBind();
+        GL_CHECK_ERRORS;
+        program.SetUniform("material.normalMap", normalIdx);
         GL_CHECK_ERRORS;
     }
     program.SetUniform("material.ambient", ambient);
@@ -40,6 +51,7 @@ void Material::Setup(
 void Material::SetMaps(
     const std::string& diffuseMapPath_,
     const std::string& specularMapPath_,
+    const std::string& normalMapPath_,
     std::unordered_map<std::string, std::unique_ptr<Texture>>& textures)
 {
     if (textures.count(diffuseMapPath_)) {
@@ -50,6 +62,11 @@ void Material::SetMaps(
     if (textures.count(specularMapPath_)) {
         hasSpecularMap = true;
         specularMapPath = specularMapPath_;
+        specularMap = textures[specularMapPath]->GetTextureID();
+    }
+    if (textures.count(normalMapPath_)) {
+        hasSpecularMap = true;
+        specularMapPath = normalMapPath_;
         specularMap = textures[specularMapPath]->GetTextureID();
     }
 }
@@ -101,6 +118,10 @@ void Mesh::GLLoad()
     GL_CHECK_ERRORS;
     glGenBuffers(1, &modelsVBO);
     GL_CHECK_ERRORS;
+    glGenBuffers(1, &tangentsVBO);
+    GL_CHECK_ERRORS;
+    glGenBuffers(1, &bitangentsVBO);
+    GL_CHECK_ERRORS;
     glGenBuffers(1, &EBO);
     GL_CHECK_ERRORS;
 
@@ -138,6 +159,27 @@ void Mesh::GLLoad()
         GL_CHECK_ERRORS;
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 2, (GLvoid*)0);
         GL_CHECK_ERRORS;
+
+        //tangents and bitangents for normal mapping
+        if (hasTangentsBitangents) {
+            glBindBuffer(GL_ARRAY_BUFFER, tangentsVBO);
+            GL_CHECK_ERRORS;
+            glBufferData(GL_ARRAY_BUFFER, tangents.size() * sizeof(GL_FLOAT) * 3, tangents.data(), GL_STATIC_DRAW);
+            GL_CHECK_ERRORS;
+            glEnableVertexAttribArray(3);
+            GL_CHECK_ERRORS;
+            glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 3, (GLvoid*)0);
+            GL_CHECK_ERRORS;
+
+            glBindBuffer(GL_ARRAY_BUFFER, bitangentsVBO);
+            GL_CHECK_ERRORS;
+            glBufferData(GL_ARRAY_BUFFER, bitangents.size() * sizeof(GL_FLOAT) * 3, bitangents.data(), GL_STATIC_DRAW);
+            GL_CHECK_ERRORS;
+            glEnableVertexAttribArray(4);
+            GL_CHECK_ERRORS;
+            glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 3, (GLvoid*)0);
+            GL_CHECK_ERRORS;
+        }
 
         //indices
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
@@ -178,11 +220,11 @@ void Mesh::Draw(const std::vector<glm::mat4>& modelMatrices) const
     glBufferData(GL_ARRAY_BUFFER, modelMatrices.size() * sizeof(GL_FLOAT) * 16, modelMatrices.data(), GL_STATIC_DRAW);
     GL_CHECK_ERRORS;
     for (int i = 0; i < 4; ++i) {
-        glEnableVertexAttribArray(i + 3);
+        glEnableVertexAttribArray(i + 5);
         GL_CHECK_ERRORS;
-        glVertexAttribPointer(i + 3, 4, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 16, (GLvoid*)(sizeof(GLfloat) * i * 4));
+        glVertexAttribPointer(i + 5, 4, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 16, (GLvoid*)(sizeof(GLfloat) * i * 4));
         GL_CHECK_ERRORS;
-        glVertexAttribDivisor(i + 3, 1);
+        glVertexAttribDivisor(i + 5, 1);
         GL_CHECK_ERRORS;
     }
     glDrawElementsInstanced(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0, modelMatrices.size());
