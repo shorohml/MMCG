@@ -198,8 +198,9 @@ void App::mainLoop()
     //force 60 frames per second
     glfwSwapInterval(1);
 
-    //enabling depth testing
+    //enabling depth and stencil testing
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_STENCIL_TEST); 
 
     //capture cursor
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -261,7 +262,7 @@ void App::mainLoop()
         //
         glViewport(0, 0, config["width"], config["height"]);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         glUseProgram(lightningProgram.ProgramObj); //StartUseShader
 

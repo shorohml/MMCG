@@ -210,7 +210,11 @@ void main()
     vec3 viewDir = normalize(-fsIn.fragPos);
     vec3 diffuseMapVal = vec3(1.0);
     if (material.hasDiffuseMap) {
-        diffuseMapVal = texture(material.diffuseMap, fsIn.texCoords).rgb;
+        vec4 color = texture(material.diffuseMap, fsIn.texCoords);
+        if (color.a < 0.5) {
+            discard;
+        }
+        diffuseMapVal = vec3(color);
     }
     vec3 specularMapVal = vec3(1.0);
     if (material.hasSpecularMap) {
