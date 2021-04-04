@@ -202,6 +202,10 @@ void App::mainLoop()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_STENCIL_TEST); 
 
+    //enamble anti-aliasing
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glEnable(GL_MULTISAMPLE);
+
     //capture cursor
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
