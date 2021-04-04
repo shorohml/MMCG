@@ -200,7 +200,7 @@ void App::mainLoop()
 
     //enabling depth and stencil testing
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_STENCIL_TEST); 
+    glEnable(GL_STENCIL_TEST);
 
     //enamble anti-aliasing
     glfwWindowHint(GLFW_SAMPLES, 4);
@@ -267,6 +267,9 @@ void App::mainLoop()
         glViewport(0, 0, config["width"], config["height"]);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+        //enamble face culling
+        glEnable(GL_CULL_FACE);
 
         glUseProgram(lightningProgram.ProgramObj); //StartUseShader
 
@@ -335,6 +338,9 @@ void App::mainLoop()
         }
 
         glUseProgram(sourceProgram.ProgramObj); //StartUseShader
+
+        //enamble face culling
+        glDisable(GL_CULL_FACE);
 
         //draw light sources
         for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
