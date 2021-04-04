@@ -339,7 +339,7 @@ void App::mainLoop()
 
         glUseProgram(sourceProgram.ProgramObj); //StartUseShader
 
-        //enamble face culling
+        //disable face culling
         glDisable(GL_CULL_FACE);
 
         //draw light sources
