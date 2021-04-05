@@ -201,7 +201,6 @@ void App::loadModels()
     std::cout << "Min: " << sceneBBOX.min.x << ' ' << sceneBBOX.min.y << ' ' << sceneBBOX.min.z << std::endl; 
     std::cout << "Max: " << sceneBBOX.max.x << ' ' << sceneBBOX.max.y << ' ' << sceneBBOX.max.z << std::endl;
     std::cout << std::endl;
-    glm::vec3 sceneBbox(0.f);
 }
 
 void App::mainLoop()
@@ -527,8 +526,6 @@ void App::mainLoop()
 
         glUseProgram(lightningProgram.ProgramObj); //StartUseShader
 
-        //model
-        glm::mat4 model(1.0);
         //view
         glm::mat4 view = state.camera.GetViewMatrix();
         //projection
