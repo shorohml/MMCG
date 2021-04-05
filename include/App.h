@@ -23,6 +23,7 @@ public:
     bool g_captureMouse = true; //Мышка захвачена нашим приложением или нет?
     bool isFlashlightOn = false; //Is flashlight on?
     bool visualizeNormalsWithColor = false; //normals visualization (with color)
+    bool edgeDetection = false; //edgge detection after rendering
     Camera camera; //camera
 
     AppState()

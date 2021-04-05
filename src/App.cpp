@@ -100,6 +100,11 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             state->visualizeNormalsWithColor = !(state->visualizeNormalsWithColor);
         }
         break;
+    case GLFW_KEY_E: //turn edgeDetection on/off
+        if (action == GLFW_PRESS) {
+            state->edgeDetection = !(state->edgeDetection);
+        }
+        break;
     default:
         if (action == GLFW_PRESS) {
             (state->keys)[key] = true;
@@ -213,6 +218,7 @@ void App::mainLoop()
     glfwSetMouseButtonCallback(window, OnMouseButtonClicked);
     glfwSetScrollCallback(window, OnMouseScroll);
 
+    //define point light sources positions
     std::vector<glm::vec3> pointLightPositions(5);
     for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
         pointLightPositions[i] = glm::vec3((float)(i - 2.5f) * 300.0f, 50.0f, 0.0f);
@@ -237,6 +243,10 @@ void App::mainLoop()
     glBindTexture(GL_TEXTURE_2D, texColorBuffer);
     GL_CHECK_ERRORS;
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config["width"], config["height"], 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+    GL_CHECK_ERRORS;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+    GL_CHECK_ERRORS;
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     GL_CHECK_ERRORS;
@@ -500,12 +510,13 @@ void App::mainLoop()
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(quadProgram.ProgramObj);
+        glUseProgram(quadProgram.ProgramObj); //StartUseShader
 
         //set color bufer texture
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texColorBuffer);
         quadProgram.SetUniform("colorBuffer", 0);
+        quadProgram.SetUniform("edgeDetection", state.edgeDetection);
 
         glBindVertexArray(quadVAO);
         GL_CHECK_ERRORS;
@@ -513,6 +524,8 @@ void App::mainLoop()
         GL_CHECK_ERRORS;
         glBindVertexArray(0);
         GL_CHECK_ERRORS;
+
+        glUseProgram(0); ////StopUseShader
 
         glfwSwapBuffers(window);
     }
