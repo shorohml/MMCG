@@ -59,6 +59,13 @@ private:
     nlohmann::json config; //application config
     GLFWwindow* window; //window
     float printEvery = 1.0f;
+    GLuint FBO;
+    GLuint RBO;
+    GLuint texColorBuffer; 
+
+    GLuint quadVAO;
+    GLuint quadVBO;
+    GLuint quadEBO;
 
     int initGL() const;
 

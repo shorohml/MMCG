@@ -196,16 +196,13 @@ void App::mainLoop()
     ShaderProgram sourceProgram(shaders);
     GL_CHECK_ERRORS;
 
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexQuad.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentQuad.glsl";
+    ShaderProgram quadProgram(shaders);
+    GL_CHECK_ERRORS;
+
     //force 60 frames per second
     glfwSwapInterval(1);
-
-    //enabling depth and stencil testing
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_STENCIL_TEST);
-
-    //enamble anti-aliasing
-    glfwWindowHint(GLFW_SAMPLES, 4);
-    glEnable(GL_MULTISAMPLE);
 
     //capture cursor
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -227,6 +224,96 @@ void App::mainLoop()
         glm::vec3(1.0f),
         glm::vec3(1.0f)
     };
+
+    //generate framebuffer
+    glGenFramebuffers(1, &FBO);
+    GL_CHECK_ERRORS;
+    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+    GL_CHECK_ERRORS;
+
+    //create texture for color buffer and attach it to the framebuffer
+    glGenTextures(1, &texColorBuffer);
+    GL_CHECK_ERRORS;
+    glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+    GL_CHECK_ERRORS;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config["width"], config["height"], 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    GL_CHECK_ERRORS;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    GL_CHECK_ERRORS;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    GL_CHECK_ERRORS;
+    glBindTexture(GL_TEXTURE_2D, 0);
+    GL_CHECK_ERRORS;
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
+    GL_CHECK_ERRORS;
+
+    //create renderbuffer for depth and stencil buffers and attach it to the framebuffer
+    glGenRenderbuffers(1, &RBO);
+    GL_CHECK_ERRORS;
+    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+    GL_CHECK_ERRORS;
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, config["width"], config["height"]);
+    GL_CHECK_ERRORS;
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    GL_CHECK_ERRORS;
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+    GL_CHECK_ERRORS;
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error("Couldn't create framebuffer");
+    }
+    //bind default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_CHECK_ERRORS;
+
+    //create quad for texColorBuffer rendering
+    glGenVertexArrays(1, &quadVAO);
+    GL_CHECK_ERRORS;
+    glGenBuffers(1, &quadVBO);
+    GL_CHECK_ERRORS;
+    glGenBuffers(1, &quadEBO);
+    GL_CHECK_ERRORS;
+    float quadData[16] = {
+        -1.0f, -1.0f, 0.0f, 0.0f,
+        1.0f, -1.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 0.0f, 1.0f
+    };
+    uint32_t indices[6] = {
+        0, 2, 3,
+        2, 0, 1
+    };
+    //bind VAO and VBO
+    glBindVertexArray(quadVAO);
+    GL_CHECK_ERRORS;
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    GL_CHECK_ERRORS;
+    glBufferData(GL_ARRAY_BUFFER, 16 * sizeof(GL_FLOAT), quadData, GL_STATIC_DRAW);
+    GL_CHECK_ERRORS;
+    //positions
+    glEnableVertexAttribArray(0);
+    GL_CHECK_ERRORS;
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 4, (GLvoid*)0);
+    GL_CHECK_ERRORS;
+    //texCoords
+    glEnableVertexAttribArray(1);
+    GL_CHECK_ERRORS;
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 4, (GLvoid*)(2 * sizeof(GL_FLOAT)));
+    GL_CHECK_ERRORS;
+    //indices
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadEBO);
+    GL_CHECK_ERRORS;
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(uint32_t), indices, GL_STATIC_DRAW);
+    GL_CHECK_ERRORS;
+    //unbind VAO and VBO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    GL_CHECK_ERRORS;
+    glBindVertexArray(0);
+    GL_CHECK_ERRORS;
+
+    //enamble anti-aliasing
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glEnable(GL_MULTISAMPLE);
 
     //цикл обработки сообщений и отрисовки сцены каждый кадр
     float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
@@ -263,11 +350,20 @@ void App::mainLoop()
         glfwPollEvents();
         doCameraMovement();
 
+        glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+
+        // draw scene
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+
+        //enabling depth testing
+        glEnable(GL_DEPTH_TEST);
+
         //очистка и заполнение экрана цветом
-        //
-        glViewport(0, 0, config["width"], config["height"]);
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(lightningProgram.ProgramObj); //StartUseShader
 
@@ -332,7 +428,7 @@ void App::mainLoop()
 
         //enamble face culling
         glEnable(GL_CULL_FACE);
-        for (std::size_t i: notTwosided) {
+        for (std::size_t i : notTwosided) {
             //set material
             uint32_t matId = scene[i]->matId;
             materials[matId].Setup(
@@ -352,7 +448,7 @@ void App::mainLoop()
 
         //disable face culling
         glDisable(GL_CULL_FACE);
-        for (std::size_t i: twosided) {
+        for (std::size_t i : twosided) {
             //set material
             uint32_t matId = scene[i]->matId;
             materials[matId].Setup(
@@ -369,6 +465,7 @@ void App::mainLoop()
             lightningProgram.SetUniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(view * scene[i]->model))));
             scene[i]->Draw();
         }
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         glUseProgram(sourceProgram.ProgramObj); //StartUseShader
 
@@ -389,6 +486,34 @@ void App::mainLoop()
 
         glUseProgram(0); //StopUseShader
 
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+
+        //bind default framebuffer
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        //disable depth testing
+        glDisable(GL_DEPTH_TEST);
+
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glUseProgram(quadProgram.ProgramObj);
+
+        //set color bufer texture
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+        quadProgram.SetUniform("colorBuffer", 0);
+
+        glBindVertexArray(quadVAO);
+        GL_CHECK_ERRORS;
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        GL_CHECK_ERRORS;
+        glBindVertexArray(0);
+        GL_CHECK_ERRORS;
+
         glfwSwapBuffers(window);
     }
     lightningProgram.Release();
@@ -399,10 +524,23 @@ void App::release()
 {
     for (auto& mesh : scene) {
         mesh->Release();
+        GL_CHECK_ERRORS;
     }
     for (auto& item : textures) {
         item.second->Release();
+        GL_CHECK_ERRORS;
     }
+    //delete quad
+    glDeleteBuffers(1, &quadVAO);
+    glDeleteBuffers(1, &quadVBO);
+    glDeleteBuffers(1, &quadEBO);
+    //delete framebuffer
+    glDeleteTextures(1, &texColorBuffer);
+    GL_CHECK_ERRORS;
+    glDeleteRenderbuffers(1, &RBO);
+    GL_CHECK_ERRORS;
+    glDeleteFramebuffers(1, &FBO);
+    GL_CHECK_ERRORS;
     glfwTerminate();
 }
 
