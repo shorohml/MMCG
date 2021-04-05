@@ -170,6 +170,25 @@ void Mesh::Release()
     isLoaded = false;
 }
 
+AABBOX Mesh::GetAABBOX(const bool inWorldSpace) const
+{
+    AABBOX result;
+    if (positions.size() < 2) {
+        throw std::runtime_error("Need at leaast 2 vertices");
+    }
+    result.min = positions[0];
+    result.max = positions[0];
+    for (std::size_t i = 1; i < positions.size(); ++i) {
+        glm::vec3 pos = positions[i];
+        if (inWorldSpace) {
+            pos = model * glm::vec4(pos, 1.0f);
+        }
+        result.min = glm::min(result.min, pos);
+        result.max = glm::max(result.max, pos);
+    }
+    return result;
+}
+
 std::unique_ptr<Mesh> createCube()
 {
     return std::make_unique<Mesh>(

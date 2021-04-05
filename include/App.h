@@ -24,6 +24,7 @@ public:
     bool isFlashlightOn = false; //Is flashlight on?
     bool visualizeNormalsWithColor = false; //normals visualization (with color)
     bool edgeDetection = false; //edgge detection after rendering
+    bool visDepthMap = false; //visualize depth map
     Camera camera; //camera
 
     AppState()
@@ -60,10 +61,19 @@ private:
     nlohmann::json config; //application config
     GLFWwindow* window; //window
     float printEvery = 1.0f;
-    GLuint FBO;
-    GLuint RBO;
-    GLuint texColorBuffer; 
 
+    //color buffer
+    GLuint colorBufferFBO;
+    GLuint colorBufferRBO;
+    GLuint colorBufferTexture;
+
+    //depth map
+    GLuint depthMapFBO;
+    GLuint depthMapTexture;
+    const uint32_t depthMapWidth = 4096;
+    const uint32_t depthMapHeight = 4096;
+
+    //simple quad that fills screen
     GLuint quadVAO;
     GLuint quadVBO;
     GLuint quadEBO;

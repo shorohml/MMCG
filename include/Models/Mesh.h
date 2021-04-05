@@ -8,6 +8,11 @@
 #include <unordered_map>
 #include <vector>
 
+struct AABBOX {
+    glm::vec3 min;
+    glm::vec3 max;
+};
+
 class Mesh {
 public:
     std::vector<glm::vec3> positions;
@@ -110,6 +115,8 @@ public:
     {
         return isLoaded;
     }
+
+    AABBOX GetAABBOX(const bool inWorldSpace = true) const; 
 
 private:
     bool isLoaded = false;

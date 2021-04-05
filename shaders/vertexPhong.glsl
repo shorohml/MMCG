@@ -62,10 +62,12 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform mat3 normalMatrix;
+uniform mat4 lightSpaceMatrix;
 
 out VS_OUT {
     vec3 normal;
     vec3 fragPos;
+    vec4 fragPosLightSpace;
     vec2 texCoords;
     vec3 dirLightDirection;
     vec3 pointLightPositions[NR_POINT_LIGHTS];
@@ -90,6 +92,7 @@ void main()
 
     vsOut.normal = normalMatrix * aNormal;
     vsOut.texCoords = aTexCoords;
+    vsOut.fragPosLightSpace = lightSpaceMatrix * model * vec4(aPos, 1.0);
 
     //transform all this stuff to tangent space
     vsOut.fragPos = TBN * vec3(frag);

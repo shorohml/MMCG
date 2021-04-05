@@ -105,6 +105,11 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             state->edgeDetection = !(state->edgeDetection);
         }
         break;
+    case GLFW_KEY_V: //turn depth bufer visualization on/off
+        if (action == GLFW_PRESS) {
+            state->visDepthMap = !(state->visDepthMap);
+        }
+        break;
     default:
         if (action == GLFW_PRESS) {
             (state->keys)[key] = true;
@@ -184,6 +189,19 @@ void App::loadModels()
     scene = unifyStaticMeshes(scene, materials);
     scene.push_back(createCube());
     scene[scene.size() - 1]->name = "lightCube";
+    //compute scene bounding box
+    AABBOX sceneBBOX = scene[0]->GetAABBOX();
+    for (std::size_t i = 1; i < scene.size(); ++i) {
+        AABBOX meshBBOX = scene[i]->GetAABBOX();
+        sceneBBOX.min = glm::min(sceneBBOX.min, meshBBOX.min);
+        sceneBBOX.max = glm::max(sceneBBOX.max, meshBBOX.max);
+    }
+    std::cout << std::endl;
+    std::cout << "Scene bounding box:" << std::endl;
+    std::cout << "Min: " << sceneBBOX.min.x << ' ' << sceneBBOX.min.y << ' ' << sceneBBOX.min.z << std::endl; 
+    std::cout << "Max: " << sceneBBOX.max.x << ' ' << sceneBBOX.max.y << ' ' << sceneBBOX.max.z << std::endl;
+    std::cout << std::endl;
+    glm::vec3 sceneBbox(0.f);
 }
 
 void App::mainLoop()
@@ -202,8 +220,18 @@ void App::mainLoop()
     GL_CHECK_ERRORS;
 
     shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexQuad.glsl";
-    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentQuad.glsl";
-    ShaderProgram quadProgram(shaders);
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentQuadColor.glsl";
+    ShaderProgram quadColorProgram(shaders);
+    GL_CHECK_ERRORS;
+
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexQuad.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentQuadDepth.glsl";
+    ShaderProgram quadDepthProgram(shaders);
+    GL_CHECK_ERRORS;
+
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexDepth.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentDepth.glsl";
+    ShaderProgram depthProgram(shaders);
     GL_CHECK_ERRORS;
 
     //force 60 frames per second
@@ -221,7 +249,7 @@ void App::mainLoop()
     //define point light sources positions
     std::vector<glm::vec3> pointLightPositions(5);
     for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
-        pointLightPositions[i] = glm::vec3((float)(i - 2.5f) * 300.0f, 50.0f, 0.0f);
+        pointLightPositions[i] = glm::vec3((float)(i - 2.5f) * 300.0f, 350.0f, 0.0f);
     }
     std::vector<glm::vec3> colors = {
         glm::vec3(1.0f),
@@ -231,18 +259,22 @@ void App::mainLoop()
         glm::vec3(1.0f)
     };
 
-    //generate framebuffer
-    glGenFramebuffers(1, &FBO);
+    //generate framebuffer for scene rendering
+    //--------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------
+    glGenFramebuffers(1, &colorBufferFBO);
     GL_CHECK_ERRORS;
-    glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
     GL_CHECK_ERRORS;
 
     //create texture for color buffer and attach it to the framebuffer
-    glGenTextures(1, &texColorBuffer);
+    glGenTextures(1, &colorBufferTexture);
     GL_CHECK_ERRORS;
-    glBindTexture(GL_TEXTURE_2D, texColorBuffer);
+    glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
     GL_CHECK_ERRORS;
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config["width"], config["height"], 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
@@ -254,19 +286,19 @@ void App::mainLoop()
     GL_CHECK_ERRORS;
     glBindTexture(GL_TEXTURE_2D, 0);
     GL_CHECK_ERRORS;
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBufferTexture, 0);
     GL_CHECK_ERRORS;
 
     //create renderbuffer for depth and stencil buffers and attach it to the framebuffer
-    glGenRenderbuffers(1, &RBO);
+    glGenRenderbuffers(1, &colorBufferRBO);
     GL_CHECK_ERRORS;
-    glBindRenderbuffer(GL_RENDERBUFFER, RBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, colorBufferRBO);
     GL_CHECK_ERRORS;
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, config["width"], config["height"]);
     GL_CHECK_ERRORS;
     glBindRenderbuffer(GL_RENDERBUFFER, 0);
     GL_CHECK_ERRORS;
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, RBO);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, colorBufferRBO);
     GL_CHECK_ERRORS;
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -276,7 +308,48 @@ void App::mainLoop()
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     GL_CHECK_ERRORS;
 
-    //create quad for texColorBuffer rendering
+    //generate framebuffer for depth map
+    //--------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------
+    glGenFramebuffers(1, &depthMapFBO);
+    GL_CHECK_ERRORS;
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    GL_CHECK_ERRORS;
+
+    //generate texture for depth map and attach it to framebuffer
+    glGenTextures(1, &depthMapTexture);
+    GL_CHECK_ERRORS;
+    glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+    GL_CHECK_ERRORS;
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, depthMapWidth, depthMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    GL_CHECK_ERRORS;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    GL_CHECK_ERRORS;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    GL_CHECK_ERRORS;
+    GL_CHECK_ERRORS;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    GL_CHECK_ERRORS;
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    GL_CHECK_ERRORS;
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapTexture, 0);
+    glDrawBuffer(GL_NONE);
+    GL_CHECK_ERRORS;
+    glReadBuffer(GL_NONE);
+    GL_CHECK_ERRORS;
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error("Couldn't create framebuffer");
+    }
+    //bind default framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_CHECK_ERRORS;
+
+    //create quad for rendering of texture to whole screen
+    //--------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------
     glGenVertexArrays(1, &quadVAO);
     GL_CHECK_ERRORS;
     glGenBuffers(1, &quadVBO);
@@ -320,12 +393,15 @@ void App::mainLoop()
     GL_CHECK_ERRORS;
     glBindVertexArray(0);
     GL_CHECK_ERRORS;
+    //--------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------
+    //--------------------------------------------------------------------------------------------------------------------
 
     //enamble anti-aliasing
     glfwWindowHint(GLFW_SAMPLES, 4);
     glEnable(GL_MULTISAMPLE);
 
-    //цикл обработки сообщений и отрисовки сцены каждый кадр
+    //main loop with scene rendering at every frame
     float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
     uint32_t frameCount = 0;
     float deltaSum = 0.0f;
@@ -360,19 +436,93 @@ void App::mainLoop()
         glfwPollEvents();
         doCameraMovement();
 
-        glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+        // render to depth map
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+
+        //enabling depth testing
+        glEnable(GL_DEPTH_TEST);
+
+        glViewport(0, 0, depthMapWidth, depthMapHeight);
+        glClear(GL_DEPTH_BUFFER_BIT);
+
+        glm::mat4 orthoProjection = glm::ortho(
+            -2500.0f,
+            2500.0f,
+            -1700.0f,
+            1700.0f,
+            0.0f,
+            3000.0f
+        );
+        glm::vec3 dir = glm::normalize(glm::vec3(1.0f, -4.5f, -1.25f));
+        glm::vec3 pos = -2100.0f * dir;
+        glm::mat4 lightView = glm::lookAt(
+            pos,
+            pos + dir,
+            glm::vec3(0.0f, 0.0f, -1.0f)
+        );
+        glm::mat4 lightSpaceMatrix = orthoProjection * lightView;
+
+        glUseProgram(depthProgram.ProgramObj); //StartUseShader
+
+        depthProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
+        for (std::size_t i = 0; i < scene.size(); ++i) {
+            depthProgram.SetUniform("model", scene[i]->model);
+            scene[i]->Draw();
+        }
+
+        glUseProgram(0); //StoptUseShader
+
+        // visualize depth Map to quad
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        if (state.visDepthMap) {
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            //disable depth testing
+            glDisable(GL_DEPTH_TEST);
+
+            glViewport(0, 0, config["width"], config["height"]);
+            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            glUseProgram(quadDepthProgram.ProgramObj); //StartUseShader
+
+            //set color bufer texture
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+            quadDepthProgram.SetUniform("depthMap", 0);
+
+            glBindVertexArray(quadVAO);
+            GL_CHECK_ERRORS;
+            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+            GL_CHECK_ERRORS;
+            glBindVertexArray(0);
+            GL_CHECK_ERRORS;
+
+            glBindTexture(GL_TEXTURE_2D, 0);
+            glUseProgram(0); //StopUseShader
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+            glfwSwapBuffers(window);
+            continue;
+        }
 
         // draw scene
         //--------------------------------------------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
+        glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
 
         //enabling depth testing
         glEnable(GL_DEPTH_TEST);
 
-        //очистка и заполнение экрана цветом
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        //clear screen and then fill it with color
+        glViewport(0, 0, config["width"], config["height"]);
+        glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(lightningProgram.ProgramObj); //StartUseShader
@@ -393,9 +543,9 @@ void App::mainLoop()
             //set point light source
             glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
             lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
-            lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.05f * colors[i]);
-            lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.8f * colors[i]);
-            lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(1.0f));
+            lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.0f * colors[i]);
+            lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.0f * colors[i]);
+            lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(0.0f));
             lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
             lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
             lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
@@ -415,14 +565,15 @@ void App::mainLoop()
         lightningProgram.SetUniform("spotLight.outerCutOff", glm::cos(glm::radians(20.0f)));
 
         //set directional light source
-        glm::vec4 direction = glm::vec4(-0.2f, -1.0f, -0.3f, 0.0f);
+        glm::vec4 direction = glm::vec4(dir, 0.0f);
         lightningProgram.SetUniform("dirLight.direction", glm::vec3(view * direction));
-        lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.0f));
-        lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.0f));
-        lightningProgram.SetUniform("dirLight.specular", glm::vec3(0.0f));
+        lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.3f));
+        lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.8f));
+        lightningProgram.SetUniform("dirLight.specular", glm::vec3(1.0f));
 
         lightningProgram.SetUniform("view", view);
         lightningProgram.SetUniform("projection", projection);
+        lightningProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
 
         //separate meshes with and without culling
         std::vector<std::size_t> twosided;
@@ -436,8 +587,11 @@ void App::mainLoop()
             }
         }
 
-        //enamble face culling
-        glEnable(GL_CULL_FACE);
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+        lightningProgram.SetUniform("shadowMap", 3);
+
+        glEnable(GL_CULL_FACE); //enamble face culling for opaque objects
         for (std::size_t i : notTwosided) {
             //set material
             uint32_t matId = scene[i]->matId;
@@ -456,8 +610,7 @@ void App::mainLoop()
             scene[i]->Draw();
         }
 
-        //disable face culling
-        glDisable(GL_CULL_FACE);
+        glDisable(GL_CULL_FACE); //disable face culling for transparent objects
         for (std::size_t i : twosided) {
             //set material
             uint32_t matId = scene[i]->matId;
@@ -476,32 +629,29 @@ void App::mainLoop()
             scene[i]->Draw();
         }
         glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0); //StoptUseShader
 
-        glUseProgram(sourceProgram.ProgramObj); //StartUseShader
+        // //draw light sources
+        // glUseProgram(sourceProgram.ProgramObj); //StartUseShader
+        // for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
+        //     //model
+        //     model = glm::mat4(1.0f);
+        //     model = glm::translate(model, pointLightPositions[i]);
+        //     model = glm::scale(model, glm::vec3(10.0f));
+        //     //set uniforms with transforms
+        //     sourceProgram.SetUniform("model", model);
+        //     sourceProgram.SetUniform("view", view);
+        //     sourceProgram.SetUniform("projection", projection);
+        //     //color
+        //     sourceProgram.SetUniform("lightColor", colors[i]);
+        //     scene[scene.size() - 1]->Draw();
+        // }
+        // glUseProgram(0); //StopUseShader
 
-        //draw light sources
-        for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
-            //model
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, pointLightPositions[i]);
-            model = glm::scale(model, glm::vec3(10.0f));
-            //set uniforms with transforms
-            sourceProgram.SetUniform("model", model);
-            sourceProgram.SetUniform("view", view);
-            sourceProgram.SetUniform("projection", projection);
-            //color
-            sourceProgram.SetUniform("lightColor", colors[i]);
-            scene[scene.size() - 1]->Draw();
-        }
-
-        glUseProgram(0); //StopUseShader
-
+        //draw texture with rendered scene to quad
         //--------------------------------------------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------------------------------------------
         //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-
-        //bind default framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         //disable depth testing
@@ -510,13 +660,13 @@ void App::mainLoop()
         glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(quadProgram.ProgramObj); //StartUseShader
+        glUseProgram(quadColorProgram.ProgramObj); //StartUseShader
 
         //set color bufer texture
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texColorBuffer);
-        quadProgram.SetUniform("colorBuffer", 0);
-        quadProgram.SetUniform("edgeDetection", state.edgeDetection);
+        glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
+        quadColorProgram.SetUniform("colorBuffer", 0);
+        quadColorProgram.SetUniform("edgeDetection", state.edgeDetection);
 
         glBindVertexArray(quadVAO);
         GL_CHECK_ERRORS;
@@ -525,7 +675,11 @@ void App::mainLoop()
         glBindVertexArray(0);
         GL_CHECK_ERRORS;
 
-        glUseProgram(0); ////StopUseShader
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glUseProgram(0); //StopUseShader
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
+        //--------------------------------------------------------------------------------------------------------------------
 
         glfwSwapBuffers(window);
     }
@@ -547,12 +701,17 @@ void App::release()
     glDeleteBuffers(1, &quadVAO);
     glDeleteBuffers(1, &quadVBO);
     glDeleteBuffers(1, &quadEBO);
-    //delete framebuffer
-    glDeleteTextures(1, &texColorBuffer);
+    //delete color framebuffer
+    glDeleteTextures(1, &colorBufferTexture);
     GL_CHECK_ERRORS;
-    glDeleteRenderbuffers(1, &RBO);
+    glDeleteRenderbuffers(1, &colorBufferRBO);
     GL_CHECK_ERRORS;
-    glDeleteFramebuffers(1, &FBO);
+    glDeleteFramebuffers(1, &colorBufferFBO);
+    GL_CHECK_ERRORS;
+    //delete depth map framebuffer
+    glDeleteTextures(1, &depthMapTexture);
+    GL_CHECK_ERRORS;
+    glDeleteFramebuffers(1, &depthMapFBO);
     GL_CHECK_ERRORS;
     glfwTerminate();
 }

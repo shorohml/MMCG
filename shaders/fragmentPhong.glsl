@@ -50,6 +50,7 @@ uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
 uniform bool spotlightOn;
+uniform sampler2D shadowMap;
 
 uniform Material material;
 
@@ -59,6 +60,7 @@ in VS_OUT
 {
     vec3 normal;
     vec3 fragPos;
+    vec4 fragPosLightSpace;
     vec2 texCoords;
     vec3 dirLightDirection;
     vec3 pointLightPositions[NR_POINT_LIGHTS];
@@ -90,6 +92,30 @@ vec3 calcSpecular(
     return materialSpecular * spec;
 }
 
+float calcDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+{
+    //transform to [0, 1]
+    vec3 projCoords = fragPosLightSpace.xyz * 0.5 + 0.5;
+    if (projCoords.z > 1.0) {
+        return 0.0;
+    }
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    //bias to remove shadow achne
+    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.005);
+    //find depth of current fragment
+    float currentDepth = projCoords.z;
+    float shadow = 0.0;
+    //simple PCF
+    for (int i = -1; i < 2; ++i) {
+        for (int j = -1; j < 2; ++j) {
+            vec2 coord = vec2(projCoords.xy + vec2(i, j) * texelSize);
+            float pcfDepth = texture(shadowMap, coord).r;
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+        }
+    }
+    return shadow / 9.0;
+}
+
 vec3 calcDirLight(
     DirLight light, //light
     vec3 direction, //use this instead of value from uniform for normal map optimization
@@ -97,7 +123,8 @@ vec3 calcDirLight(
     vec3 diffuseMapVal, //sampled from diffuse map
     vec3 specularMapVal, //sampled from specular map
     vec3 norm, //normal
-    vec3 viewDir) //direction from fragment to viewer (normalized)
+    vec3 viewDir, //direction from fragment to viewer (normalized)
+    vec4 fragPosLightSpace) //fragment position in light space
 {
     vec3 lightDir = normalize(-direction);
 
@@ -110,7 +137,9 @@ vec3 calcDirLight(
     //specular
     vec3 specular = light.specular * calcSpecular(lightDir, norm, viewDir, specularMapVal * material.specular, material);
 
-    return ambient + diffuse + specular;
+    float shadow = calcDirShadow(fragPosLightSpace, norm, lightDir);
+
+    return ambient + (1 - shadow) * (diffuse + specular);
 }
 
 float calcAttenuation(
@@ -205,7 +234,7 @@ void main()
     }
 
     if (visualizeNormalsWithColor) {
-        FragColor = vec4(normal*0.5 + 0.5, 1.0f);
+        FragColor = vec4(normal * 0.5 + 0.5, 1.0f);
         return;
     }
 
@@ -231,7 +260,8 @@ void main()
         diffuseMapVal,
         specularMapVal,
         normal,
-        viewDir);
+        viewDir,
+        fsIn.fragPosLightSpace);
 
     //point light
     for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
