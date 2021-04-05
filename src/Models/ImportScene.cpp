@@ -78,6 +78,7 @@ void fromAiMesh(
     } else {
         scene.push_back(std::make_unique<Mesh>(positions, normals, texCoords, indices, tangents, bitangents, matId, model));
     }
+    scene[scene.size() - 1]->name = std::string(assimpMesh->mName.C_Str());
 }
 
 void fromAiNode(
@@ -140,6 +141,7 @@ void importSceneFromFile(
             maxMatId = item.first;
         }
     }
+    ///load materials
     for (uint32_t i = 0; i < assimpScene->mNumMaterials; ++i) {
         Material material;
         material.id = maxMatId + 1 + i;
@@ -149,8 +151,9 @@ void importSceneFromFile(
         aiColor3D color(0.f, 0.f, 0.f);
         aiString name;
         float shininess = 32.0f;
+        int twosided = 0;
+        float opacity = 1.0f;
 
-        //load material properties
         assimpMaterial->Get(AI_MATKEY_NAME, name);
         material.name = std::string(name.C_Str());
 
@@ -166,7 +169,10 @@ void importSceneFromFile(
         assimpMaterial->Get(AI_MATKEY_SHININESS, shininess);
         material.shininess = shininess;
 
-        //load texture maps
+        assimpMaterial->Get(AI_MATKEY_TWOSIDED, twosided);
+        assimpMaterial->Get(AI_MATKEY_OPACITY, opacity);
+
+        //load maps
         //diffuse
         if (assimpMaterial->GetTextureCount(aiTextureType_DIFFUSE)) {
             aiString str;
@@ -193,7 +199,7 @@ void importSceneFromFile(
             material.specularMap = textures[path]->GetTextureID();
             material.specularMapPath = path;
         }
-        //normal map
+        //normal
         if (assimpMaterial->GetTextureCount(aiTextureType_HEIGHT)) {
             aiString str;
             assimpMaterial->GetTexture(aiTextureType_HEIGHT, 0, &str);
@@ -206,6 +212,11 @@ void importSceneFromFile(
             material.normalMap = textures[path]->GetTextureID();
             material.normalMapPath = path;
         }
+        if (assimpMaterial->GetTextureCount(aiTextureType_OPACITY)) {
+            twosided = true;
+        }
+        material.twosided = twosided;
+        material.opacity = opacity;
         materials[material.id] = material;
     }
     fromAiNode(

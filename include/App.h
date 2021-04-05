@@ -4,6 +4,7 @@
 #include "Camera.h"
 #include "Models/Texture.h"
 #include "Models/Mesh.h"
+#include "Models/Material.h"
 
 #include <GLFW/glfw3.h>
 #include <memory>

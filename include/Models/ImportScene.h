@@ -2,6 +2,7 @@
 
 #include "Models/Mesh.h"
 #include "Models/Texture.h"
+#include "Models/Material.h"
 #include <glm/glm.hpp>
 #include <memory>
 #include <unordered_map>

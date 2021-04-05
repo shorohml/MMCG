@@ -31,7 +31,8 @@ set(SOURCE_FILES
     src/App.cpp
     src/Models/Mesh.cpp
     src/Models/Texture.cpp
-    src/Models/ImportScene.cpp)
+    src/Models/ImportScene.cpp
+    src/Models/Material.cpp)
 
 add_executable(main ${SOURCE_FILES})
 

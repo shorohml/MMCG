@@ -5,6 +5,8 @@ struct Material {
     vec3 diffuse;
     vec3 specular;
     float shininess;
+    int twosided;
+    float opacity;
 
     bool hasDiffuseMap;
     sampler2D diffuseMap;
@@ -211,7 +213,7 @@ void main()
     vec3 diffuseMapVal = vec3(1.0);
     if (material.hasDiffuseMap) {
         vec4 color = texture(material.diffuseMap, fsIn.texCoords);
-        if (color.a < 0.5) {
+        if (material.twosided != 0 && material.opacity * color.a < 0.5) {
             discard;
         }
         diffuseMapVal = vec3(color);

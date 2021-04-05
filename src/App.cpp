@@ -178,6 +178,7 @@ void App::loadModels()
         textures);
     scene = unifyStaticMeshes(scene, materials);
     scene.push_back(createCube());
+    scene[scene.size() - 1]->name = "lightCube";
 }
 
 void App::mainLoop()
@@ -268,9 +269,6 @@ void App::mainLoop()
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        //enamble face culling
-        glEnable(GL_CULL_FACE);
-
         glUseProgram(lightningProgram.ProgramObj); //StartUseShader
 
         //model
@@ -319,7 +317,42 @@ void App::mainLoop()
 
         lightningProgram.SetUniform("view", view);
         lightningProgram.SetUniform("projection", projection);
+
+        //separate meshes with and without culling
+        std::vector<std::size_t> twosided;
+        std::vector<std::size_t> notTwosided;
         for (std::size_t i = 0; i < scene.size() - 1; ++i) {
+            uint32_t matId = scene[i]->matId;
+            if (materials[matId].twosided) {
+                twosided.push_back(i);
+            } else {
+                notTwosided.push_back(i);
+            }
+        }
+
+        //enamble face culling
+        glEnable(GL_CULL_FACE);
+        for (std::size_t i: notTwosided) {
+            //set material
+            uint32_t matId = scene[i]->matId;
+            materials[matId].Setup(
+                lightningProgram,
+                textures,
+                GL_TEXTURE0,
+                GL_TEXTURE1,
+                GL_TEXTURE2,
+                0,
+                1,
+                2);
+            //set uniforms with transforms
+            lightningProgram.SetUniform("model", scene[i]->model);
+            lightningProgram.SetUniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(view * scene[i]->model))));
+            scene[i]->Draw();
+        }
+
+        //disable face culling
+        glDisable(GL_CULL_FACE);
+        for (std::size_t i: twosided) {
             //set material
             uint32_t matId = scene[i]->matId;
             materials[matId].Setup(
@@ -338,9 +371,6 @@ void App::mainLoop()
         }
 
         glUseProgram(sourceProgram.ProgramObj); //StartUseShader
-
-        //disable face culling
-        glDisable(GL_CULL_FACE);
 
         //draw light sources
         for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {

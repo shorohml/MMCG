@@ -12,6 +12,8 @@ struct Material {
     vec3 diffuse;
     vec3 specular;
     float shininess;
+    int twosided;
+    float opacity;
 
     bool hasDiffuseMap;
     sampler2D diffuseMap;
