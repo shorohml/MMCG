@@ -45,8 +45,8 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 5
-uniform PointLight pointLights[NR_POINT_LIGHTS];
+// #define NR_POINT_LIGHTS 5
+// uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
 uniform bool spotlightOn;
@@ -63,7 +63,7 @@ in VS_OUT
     vec4 fragPosLightSpace;
     vec2 texCoords;
     vec3 dirLightDirection;
-    vec3 pointLightPositions[NR_POINT_LIGHTS];
+    // vec3 pointLightPositions[NR_POINT_LIGHTS];
     vec3 spotlightPosition;
     vec3 spotlightDirection;
 }
@@ -263,18 +263,18 @@ void main()
         viewDir,
         fsIn.fragPosLightSpace);
 
-    //point light
-    for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
-        color += calcPointLight(
-            pointLights[i],
-            fsIn.pointLightPositions[i],
-            material,
-            diffuseMapVal,
-            specularMapVal,
-            normal,
-            fsIn.fragPos,
-            viewDir);
-    }
+    // //point light
+    // for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
+    //     color += calcPointLight(
+    //         pointLights[i],
+    //         fsIn.pointLightPositions[i],
+    //         material,
+    //         diffuseMapVal,
+    //         specularMapVal,
+    //         normal,
+    //         fsIn.fragPos,
+    //         viewDir);
+    // }
 
     if (spotlightOn) {
         //spotlight

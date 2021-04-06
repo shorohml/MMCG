@@ -51,8 +51,8 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 5
-uniform PointLight pointLights[NR_POINT_LIGHTS];
+// #define NR_POINT_LIGHTS 5
+// uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
 
@@ -70,7 +70,7 @@ out VS_OUT {
     vec4 fragPosLightSpace;
     vec2 texCoords;
     vec3 dirLightDirection;
-    vec3 pointLightPositions[NR_POINT_LIGHTS];
+    // vec3 pointLightPositions[NR_POINT_LIGHTS];
     vec3 spotlightPosition;
     vec3 spotlightDirection;
 } vsOut;
@@ -97,9 +97,9 @@ void main()
     //transform all this stuff to tangent space
     vsOut.fragPos = TBN * vec3(frag);
     vsOut.dirLightDirection = TBN * dirLight.direction;
-    for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
-        vsOut.pointLightPositions[i] = TBN * pointLights[i].position;
-    }
+    // for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
+    //     vsOut.pointLightPositions[i] = TBN * pointLights[i].position;
+    // }
     vsOut.spotlightDirection = TBN * spotLight.direction;
     vsOut.spotlightPosition = TBN * spotLight.pointLight.position;
     vsOut.dirLightDirection = TBN * dirLight.direction;

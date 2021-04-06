@@ -11,6 +11,12 @@
 struct AABBOX {
     glm::vec3 min;
     glm::vec3 max;
+
+    float GetVolume() const
+    {
+        glm::vec3 diff = max - min;
+        return diff.x * diff.y * diff.z;
+    }
 };
 
 class Mesh {

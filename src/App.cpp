@@ -1,6 +1,7 @@
 #include "App.h"
 #include "Models/ImportScene.h"
 #include "ShaderProgram.h"
+#include <map>
 
 App::App(const std::string& pathToConfig)
 {
@@ -198,7 +199,7 @@ void App::loadModels()
     }
     std::cout << std::endl;
     std::cout << "Scene bounding box:" << std::endl;
-    std::cout << "Min: " << sceneBBOX.min.x << ' ' << sceneBBOX.min.y << ' ' << sceneBBOX.min.z << std::endl; 
+    std::cout << "Min: " << sceneBBOX.min.x << ' ' << sceneBBOX.min.y << ' ' << sceneBBOX.min.z << std::endl;
     std::cout << "Max: " << sceneBBOX.max.x << ' ' << sceneBBOX.max.y << ' ' << sceneBBOX.max.z << std::endl;
     std::cout << std::endl;
 }
@@ -400,6 +401,18 @@ void App::mainLoop()
     glfwWindowHint(GLFW_SAMPLES, 4);
     glEnable(GL_MULTISAMPLE);
 
+    //separate meshes with and without culling
+    std::vector<std::size_t> twosided;
+    std::vector<std::size_t> notTwosided;
+    for (std::size_t i = 0; i < scene.size() - 1; ++i) {
+        uint32_t matId = scene[i]->matId;
+        if (materials[matId].twosided) {
+            twosided.push_back(i);
+        } else {
+            notTwosided.push_back(i);
+        }
+    }
+
     //main loop with scene rendering at every frame
     float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
     uint32_t frameCount = 0;
@@ -453,15 +466,13 @@ void App::mainLoop()
             -1700.0f,
             1700.0f,
             0.0f,
-            3000.0f
-        );
+            3000.0f);
         glm::vec3 dir = glm::normalize(glm::vec3(1.0f, -4.5f, -1.25f));
         glm::vec3 pos = -2100.0f * dir;
         glm::mat4 lightView = glm::lookAt(
             pos,
             pos + dir,
-            glm::vec3(0.0f, 0.0f, -1.0f)
-        );
+            glm::vec3(0.0f, 0.0f, -1.0f));
         glm::mat4 lightSpaceMatrix = orthoProjection * lightView;
 
         glUseProgram(depthProgram.ProgramObj); //StartUseShader
@@ -534,19 +545,19 @@ void App::mainLoop()
 
         lightningProgram.SetUniform("visualizeNormalsWithColor", state.visualizeNormalsWithColor);
 
-        //set light sources
-        for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
-            std::string idx = std::to_string(i);
-            //set point light source
-            glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
-            lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
-            lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.0f * colors[i]);
-            lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.0f * colors[i]);
-            lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(0.0f));
-            lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
-            lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
-            lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
-        }
+        // //set light sources
+        // for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
+        //     std::string idx = std::to_string(i);
+        //     //set point light source
+        //     glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
+        //     lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
+        //     lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.0f * colors[i]);
+        //     lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.0f * colors[i]);
+        //     lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(0.0f));
+        //     lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
+        //     lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
+        //     lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
+        // }
 
         //set spotlight source
         lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
@@ -571,18 +582,6 @@ void App::mainLoop()
         lightningProgram.SetUniform("view", view);
         lightningProgram.SetUniform("projection", projection);
         lightningProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
-
-        //separate meshes with and without culling
-        std::vector<std::size_t> twosided;
-        std::vector<std::size_t> notTwosided;
-        for (std::size_t i = 0; i < scene.size() - 1; ++i) {
-            uint32_t matId = scene[i]->matId;
-            if (materials[matId].twosided) {
-                twosided.push_back(i);
-            } else {
-                notTwosided.push_back(i);
-            }
-        }
 
         glActiveTexture(GL_TEXTURE3);
         glBindTexture(GL_TEXTURE_2D, depthMapTexture);
