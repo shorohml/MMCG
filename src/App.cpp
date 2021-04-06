@@ -8,10 +8,31 @@ App::App(const std::string& pathToConfig)
     std::ifstream input(pathToConfig);
     input >> config;
 
-    state.camera.MouseSensitivity = config["MouseSensitivity"];
+    //setup initial state
     state.lastX = static_cast<float>(config["width"]) / 2.0f;
     state.lastY = static_cast<float>(config["height"]) / 2.0f;
+    state.camera.MouseSensitivity = config["MouseSensitivity"];
     state.camera.MovementSpeed = 50.0f * 2.0f;
+
+    //setup path to directory with shaders
+    shadersPath = config["shadersPath"];
+
+    //setup light source for shadow mapping
+    //TODO: move this to some separate method for scene setup
+    dir = glm::normalize(glm::vec3(1.0f, -4.5f, -1.25f));
+    glm::vec3 pos = -2100.0f * dir;
+    glm::mat4 lightView = glm::lookAt(
+        pos,
+        pos + dir,
+        glm::vec3(0.0f, 0.0f, -1.0f));
+    glm::mat4 orthoProjection = glm::ortho(
+        -2500.0f,
+        2500.0f,
+        -1700.0f,
+        1700.0f,
+        0.0f,
+        3000.0f);
+    lightSpaceMatrix = orthoProjection * lightView;
 }
 
 int App::initGL() const
@@ -108,7 +129,7 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
         break;
     case GLFW_KEY_V: //turn depth bufer visualization on/off
         if (action == GLFW_PRESS) {
-            state->visDepthMap = !(state->visDepthMap);
+            state->visshadowMap = !(state->visshadowMap);
         }
         break;
     default:
@@ -190,6 +211,15 @@ void App::loadModels()
     scene = unifyStaticMeshes(scene, materials);
     scene.push_back(createCube());
     scene[scene.size() - 1]->name = "lightCube";
+    //separate meshes with and without face culling
+    for (std::size_t i = 0; i < scene.size() - 1; ++i) {
+        uint32_t matId = scene[i]->matId;
+        if (materials[matId].twosided) {
+            twosided.push_back(i);
+        } else {
+            notTwosided.push_back(i);
+        }
+    }
     //compute scene bounding box
     AABBOX sceneBBOX = scene[0]->GetAABBOX();
     for (std::size_t i = 1; i < scene.size(); ++i) {
@@ -204,65 +234,8 @@ void App::loadModels()
     std::cout << std::endl;
 }
 
-void App::mainLoop()
+void App::setupColorBuffer()
 {
-    //create shader programs using wrapper ShaderProgram class
-    std::unordered_map<GLenum, std::string> shaders;
-    std::string shadersPath = config["shadersPath"];
-    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexPhong.glsl";
-    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentPhong.glsl";
-    ShaderProgram lightningProgram(shaders);
-    GL_CHECK_ERRORS;
-
-    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexLightSource.glsl";
-    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentLightSource.glsl";
-    ShaderProgram sourceProgram(shaders);
-    GL_CHECK_ERRORS;
-
-    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexQuad.glsl";
-    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentQuadColor.glsl";
-    ShaderProgram quadColorProgram(shaders);
-    GL_CHECK_ERRORS;
-
-    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexQuad.glsl";
-    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentQuadDepth.glsl";
-    ShaderProgram quadDepthProgram(shaders);
-    GL_CHECK_ERRORS;
-
-    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexDepth.glsl";
-    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentDepth.glsl";
-    ShaderProgram depthProgram(shaders);
-    GL_CHECK_ERRORS;
-
-    //force 60 frames per second
-    glfwSwapInterval(1);
-
-    //capture cursor
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-
-    //register callbacks
-    glfwSetKeyCallback(window, OnKeyboardPressed);
-    glfwSetCursorPosCallback(window, OnMouseMove);
-    glfwSetMouseButtonCallback(window, OnMouseButtonClicked);
-    glfwSetScrollCallback(window, OnMouseScroll);
-
-    //define point light sources positions
-    std::vector<glm::vec3> pointLightPositions(5);
-    for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
-        pointLightPositions[i] = glm::vec3((float)(i - 2.5f) * 300.0f, 350.0f, 0.0f);
-    }
-    std::vector<glm::vec3> colors = {
-        glm::vec3(1.0f),
-        glm::vec3(1.0f),
-        glm::vec3(1.0f),
-        glm::vec3(1.0f),
-        glm::vec3(1.0f)
-    };
-
-    //generate framebuffer for scene rendering
-    //--------------------------------------------------------------------------------------------------------------------
-    //--------------------------------------------------------------------------------------------------------------------
-    //--------------------------------------------------------------------------------------------------------------------
     glGenFramebuffers(1, &colorBufferFBO);
     GL_CHECK_ERRORS;
     glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
@@ -278,7 +251,6 @@ void App::mainLoop()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-    GL_CHECK_ERRORS;
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     GL_CHECK_ERRORS;
@@ -300,40 +272,49 @@ void App::mainLoop()
     GL_CHECK_ERRORS;
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, colorBufferRBO);
     GL_CHECK_ERRORS;
-
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         throw std::runtime_error("Couldn't create framebuffer");
     }
+
     //bind default framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     GL_CHECK_ERRORS;
+}
 
-    //generate framebuffer for depth map
-    //--------------------------------------------------------------------------------------------------------------------
-    //--------------------------------------------------------------------------------------------------------------------
-    //--------------------------------------------------------------------------------------------------------------------
-    glGenFramebuffers(1, &depthMapFBO);
+void App::deleteColorBuffer()
+{
+    glDeleteTextures(1, &colorBufferTexture);
     GL_CHECK_ERRORS;
-    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glDeleteRenderbuffers(1, &colorBufferRBO);
+    GL_CHECK_ERRORS;
+    glDeleteFramebuffers(1, &colorBufferFBO);
+    GL_CHECK_ERRORS;
+}
+
+void App::setupShadowMapBuffer()
+{
+    glGenFramebuffers(1, &shadowMapFBO);
+    GL_CHECK_ERRORS;
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
     GL_CHECK_ERRORS;
 
     //generate texture for depth map and attach it to framebuffer
-    glGenTextures(1, &depthMapTexture);
+    glGenTextures(1, &shadowMapTexture);
     GL_CHECK_ERRORS;
-    glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
     GL_CHECK_ERRORS;
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, depthMapWidth, depthMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     GL_CHECK_ERRORS;
-    GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     GL_CHECK_ERRORS;
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapTexture, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMapTexture, 0);
+    GL_CHECK_ERRORS;
     glDrawBuffer(GL_NONE);
     GL_CHECK_ERRORS;
     glReadBuffer(GL_NONE);
@@ -342,20 +323,21 @@ void App::mainLoop()
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         throw std::runtime_error("Couldn't create framebuffer");
     }
-    //bind default framebuffer
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     GL_CHECK_ERRORS;
+}
 
-    //create quad for rendering of texture to whole screen
-    //--------------------------------------------------------------------------------------------------------------------
-    //--------------------------------------------------------------------------------------------------------------------
-    //--------------------------------------------------------------------------------------------------------------------
-    glGenVertexArrays(1, &quadVAO);
+void App::deleteShadowMapBuffer()
+{
+    glDeleteTextures(1, &shadowMapTexture);
     GL_CHECK_ERRORS;
-    glGenBuffers(1, &quadVBO);
+    glDeleteFramebuffers(1, &shadowMapFBO);
     GL_CHECK_ERRORS;
-    glGenBuffers(1, &quadEBO);
-    GL_CHECK_ERRORS;
+}
+
+void App::setupQuad()
+{
     float quadData[16] = {
         -1.0f, -1.0f, 0.0f, 0.0f,
         1.0f, -1.0f, 1.0f, 0.0f,
@@ -366,6 +348,12 @@ void App::mainLoop()
         0, 2, 3,
         2, 0, 1
     };
+    glGenVertexArrays(1, &quadVAO);
+    GL_CHECK_ERRORS;
+    glGenBuffers(1, &quadVBO);
+    GL_CHECK_ERRORS;
+    glGenBuffers(1, &quadEBO);
+    GL_CHECK_ERRORS;
     //bind VAO and VBO
     glBindVertexArray(quadVAO);
     GL_CHECK_ERRORS;
@@ -393,28 +381,236 @@ void App::mainLoop()
     GL_CHECK_ERRORS;
     glBindVertexArray(0);
     GL_CHECK_ERRORS;
-    //--------------------------------------------------------------------------------------------------------------------
-    //--------------------------------------------------------------------------------------------------------------------
-    //--------------------------------------------------------------------------------------------------------------------
+}
 
-    //enamble anti-aliasing
+void App::deleteQuad()
+{
+    glDeleteBuffers(1, &quadVAO);
+    glDeleteBuffers(1, &quadVBO);
+    glDeleteBuffers(1, &quadEBO);
+}
+
+void App::renderShadowMap(ShaderProgram &depthProgram)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+
+    //enabling depth testing
+    glEnable(GL_DEPTH_TEST);
+
+    glViewport(0, 0, shadowMapWidth, shadowMapHeight);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    glUseProgram(depthProgram.ProgramObj); //StartUseShader
+
+    depthProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
+    for (std::size_t i = 0; i < scene.size(); ++i) {
+        depthProgram.SetUniform("model", scene[i]->model);
+        scene[i]->Draw();
+    }
+
+    glUseProgram(0); //StoptUseShader
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void App::visualizeShadowMap(ShaderProgram &quadDepthProgram)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glDisable(GL_DEPTH_TEST);
+
+    glViewport(0, 0, config["width"], config["height"]);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glUseProgram(quadDepthProgram.ProgramObj); //StartUseShader
+
+    //set color bufer texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+    quadDepthProgram.SetUniform("shadowMap", 0);
+
+    glBindVertexArray(quadVAO);
+    GL_CHECK_ERRORS;
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    GL_CHECK_ERRORS;
+    glBindVertexArray(0);
+    GL_CHECK_ERRORS;
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0); //StopUseShader
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void App::renderScene(ShaderProgram &lightningProgram)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
+
+    //enabling depth testing
+    glEnable(GL_DEPTH_TEST);
+
+    //clear screen and then fill it with color
+    glViewport(0, 0, config["width"], config["height"]);
+    glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glUseProgram(lightningProgram.ProgramObj); //StartUseShader
+
+    //view
+    glm::mat4 view = state.camera.GetViewMatrix();
+    //projection
+    float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
+    glm::mat4 projection = glm::perspective(glm::radians(state.camera.Zoom), ratio, 1.0f, 3000.0f);
+
+    lightningProgram.SetUniform("visualizeNormalsWithColor", state.visualizeNormalsWithColor);
+
+    //set spotlight source
+    lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
+    lightningProgram.SetUniform("spotLight.pointLight.position", glm::vec3(0.0f));
+    lightningProgram.SetUniform("spotLight.pointLight.ambient", glm::vec3(0.05f));
+    lightningProgram.SetUniform("spotLight.pointLight.diffuse", glm::vec3(0.9f));
+    lightningProgram.SetUniform("spotLight.pointLight.specular", glm::vec3(1.0f));
+    lightningProgram.SetUniform("spotLight.pointLight.constant", 1.0f);
+    lightningProgram.SetUniform("spotLight.pointLight.linear", 0.0014f);
+    lightningProgram.SetUniform("spotLight.pointLight.quadratic", 0.000007f);
+    lightningProgram.SetUniform("spotLight.direction", glm::vec3(0.0f, 0.0f, -1.0f));
+    lightningProgram.SetUniform("spotLight.cutOff", glm::cos(glm::radians(15.0f)));
+    lightningProgram.SetUniform("spotLight.outerCutOff", glm::cos(glm::radians(20.0f)));
+
+    //set directional light source
+    glm::vec4 direction = glm::vec4(dir, 0.0f);
+    lightningProgram.SetUniform("dirLight.direction", glm::vec3(view * direction));
+    lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.3f));
+    lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.8f));
+    lightningProgram.SetUniform("dirLight.specular", glm::vec3(1.0f));
+
+    lightningProgram.SetUniform("view", view);
+    lightningProgram.SetUniform("projection", projection);
+    lightningProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
+
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+    lightningProgram.SetUniform("shadowMap", 3);
+
+    //opaque objects
+    glEnable(GL_CULL_FACE);
+    for (std::size_t i : notTwosided) {
+        //set material
+        uint32_t matId = scene[i]->matId;
+        materials[matId].Setup(
+            lightningProgram,
+            textures,
+            GL_TEXTURE0,
+            GL_TEXTURE1,
+            GL_TEXTURE2,
+            0,
+            1,
+            2);
+        //set uniforms with transforms
+        glm::mat3 normalMatrix = glm::transpose(glm::inverse(view * scene[i]->model));
+        lightningProgram.SetUniform("model", scene[i]->model);
+        lightningProgram.SetUniform("normalMatrix", normalMatrix);
+        scene[i]->Draw();
+    }
+
+    //transparent objects
+    glDisable(GL_CULL_FACE);
+    for (std::size_t i : twosided) {
+        //set material
+        uint32_t matId = scene[i]->matId;
+        materials[matId].Setup(
+            lightningProgram,
+            textures,
+            GL_TEXTURE0,
+            GL_TEXTURE1,
+            GL_TEXTURE2,
+            0,
+            1,
+            2);
+        //set uniforms with transforms
+        glm::mat3 normalMatrix = glm::transpose(glm::inverse(view * scene[i]->model));
+        lightningProgram.SetUniform("model", scene[i]->model);
+        lightningProgram.SetUniform("normalMatrix", normalMatrix);
+        scene[i]->Draw();
+    }
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0); //StoptUseShader
+}
+
+void App::visualizeScene(ShaderProgram &quadColorProgram)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    //disable depth testing
+    glDisable(GL_DEPTH_TEST);
+
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glUseProgram(quadColorProgram.ProgramObj); //StartUseShader
+
+    //set color bufer texture
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
+    quadColorProgram.SetUniform("colorBuffer", 0);
+    quadColorProgram.SetUniform("edgeDetection", state.edgeDetection);
+
+    glBindVertexArray(quadVAO);
+    GL_CHECK_ERRORS;
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    GL_CHECK_ERRORS;
+    glBindVertexArray(0);
+    GL_CHECK_ERRORS;
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0); //StopUseShader
+}
+
+void App::mainLoop()
+{
+    //create shader programs
+    std::unordered_map<GLenum, std::string> shaders;
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexPhong.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentPhong.glsl";
+    ShaderProgram lightningProgram(shaders);
+    GL_CHECK_ERRORS;
+
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexDepth.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentDepth.glsl";
+    ShaderProgram depthProgram(shaders);
+    GL_CHECK_ERRORS;
+
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexQuad.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentQuadColor.glsl";
+    ShaderProgram quadColorProgram(shaders);
+    GL_CHECK_ERRORS;
+
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexQuad.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentQuadDepth.glsl";
+    ShaderProgram quadDepthProgram(shaders);
+    GL_CHECK_ERRORS;
+
+    //force 60 frames per second
+    glfwSwapInterval(1);
+
+    //capture cursor
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    //register callbacks
+    glfwSetKeyCallback(window, OnKeyboardPressed);
+    glfwSetCursorPosCallback(window, OnMouseMove);
+    glfwSetMouseButtonCallback(window, OnMouseButtonClicked);
+    glfwSetScrollCallback(window, OnMouseScroll);
+
+    //setup framebuffers and quad to render resulting textures
+    setupColorBuffer();
+    setupShadowMapBuffer();
+    setupQuad();
+
+    //enable anti-aliasing
     glfwWindowHint(GLFW_SAMPLES, 4);
     glEnable(GL_MULTISAMPLE);
 
-    //separate meshes with and without culling
-    std::vector<std::size_t> twosided;
-    std::vector<std::size_t> notTwosided;
-    for (std::size_t i = 0; i < scene.size() - 1; ++i) {
-        uint32_t matId = scene[i]->matId;
-        if (materials[matId].twosided) {
-            twosided.push_back(i);
-        } else {
-            notTwosided.push_back(i);
-        }
-    }
-
     //main loop with scene rendering at every frame
-    float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
     uint32_t frameCount = 0;
     float deltaSum = 0.0f;
     bool firstFrame = true;
@@ -448,239 +644,29 @@ void App::mainLoop()
         glfwPollEvents();
         doCameraMovement();
 
-        // render to depth map
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        //render shadow map to shadowMapTexture
+        renderShadowMap(depthProgram);
 
-        //enabling depth testing
-        glEnable(GL_DEPTH_TEST);
-
-        glViewport(0, 0, depthMapWidth, depthMapHeight);
-        glClear(GL_DEPTH_BUFFER_BIT);
-
-        glm::mat4 orthoProjection = glm::ortho(
-            -2500.0f,
-            2500.0f,
-            -1700.0f,
-            1700.0f,
-            0.0f,
-            3000.0f);
-        glm::vec3 dir = glm::normalize(glm::vec3(1.0f, -4.5f, -1.25f));
-        glm::vec3 pos = -2100.0f * dir;
-        glm::mat4 lightView = glm::lookAt(
-            pos,
-            pos + dir,
-            glm::vec3(0.0f, 0.0f, -1.0f));
-        glm::mat4 lightSpaceMatrix = orthoProjection * lightView;
-
-        glUseProgram(depthProgram.ProgramObj); //StartUseShader
-
-        depthProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
-        for (std::size_t i = 0; i < scene.size(); ++i) {
-            depthProgram.SetUniform("model", scene[i]->model);
-            scene[i]->Draw();
-        }
-
-        glUseProgram(0); //StoptUseShader
-
-        // visualize depth Map to quad
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        if (state.visDepthMap) {
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-            //disable depth testing
-            glDisable(GL_DEPTH_TEST);
-
-            glViewport(0, 0, config["width"], config["height"]);
-            glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            glUseProgram(quadDepthProgram.ProgramObj); //StartUseShader
-
-            //set color bufer texture
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, depthMapTexture);
-            quadDepthProgram.SetUniform("depthMap", 0);
-
-            glBindVertexArray(quadVAO);
-            GL_CHECK_ERRORS;
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-            GL_CHECK_ERRORS;
-            glBindVertexArray(0);
-            GL_CHECK_ERRORS;
-
-            glBindTexture(GL_TEXTURE_2D, 0);
-            glUseProgram(0); //StopUseShader
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
+        // visualize shadow map
+        if (state.visshadowMap) {
+            //draw texture with shadow map to quad
+            visualizeShadowMap(quadDepthProgram);
             glfwSwapBuffers(window);
             continue;
         }
 
-        // draw scene
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
-
-        //enabling depth testing
-        glEnable(GL_DEPTH_TEST);
-
-        //clear screen and then fill it with color
-        glViewport(0, 0, config["width"], config["height"]);
-        glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        glUseProgram(lightningProgram.ProgramObj); //StartUseShader
-
-        //view
-        glm::mat4 view = state.camera.GetViewMatrix();
-        //projection
-        glm::mat4 projection;
-        projection = glm::perspective(glm::radians(state.camera.Zoom), ratio, 1.0f, 3000.0f);
-
-        lightningProgram.SetUniform("visualizeNormalsWithColor", state.visualizeNormalsWithColor);
-
-        // //set light sources
-        // for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
-        //     std::string idx = std::to_string(i);
-        //     //set point light source
-        //     glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
-        //     lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
-        //     lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.0f * colors[i]);
-        //     lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.0f * colors[i]);
-        //     lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(0.0f));
-        //     lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
-        //     lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
-        //     lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
-        // }
-
-        //set spotlight source
-        lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
-        lightningProgram.SetUniform("spotLight.pointLight.position", glm::vec3(0.0f));
-        lightningProgram.SetUniform("spotLight.pointLight.ambient", glm::vec3(0.05f));
-        lightningProgram.SetUniform("spotLight.pointLight.diffuse", glm::vec3(0.9f));
-        lightningProgram.SetUniform("spotLight.pointLight.specular", glm::vec3(1.0f));
-        lightningProgram.SetUniform("spotLight.pointLight.constant", 1.0f);
-        lightningProgram.SetUniform("spotLight.pointLight.linear", 0.0014f);
-        lightningProgram.SetUniform("spotLight.pointLight.quadratic", 0.000007f);
-        lightningProgram.SetUniform("spotLight.direction", glm::vec3(0.0f, 0.0f, -1.0f));
-        lightningProgram.SetUniform("spotLight.cutOff", glm::cos(glm::radians(15.0f)));
-        lightningProgram.SetUniform("spotLight.outerCutOff", glm::cos(glm::radians(20.0f)));
-
-        //set directional light source
-        glm::vec4 direction = glm::vec4(dir, 0.0f);
-        lightningProgram.SetUniform("dirLight.direction", glm::vec3(view * direction));
-        lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.3f));
-        lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.8f));
-        lightningProgram.SetUniform("dirLight.specular", glm::vec3(1.0f));
-
-        lightningProgram.SetUniform("view", view);
-        lightningProgram.SetUniform("projection", projection);
-        lightningProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
-
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, depthMapTexture);
-        lightningProgram.SetUniform("shadowMap", 3);
-
-        glEnable(GL_CULL_FACE); //enamble face culling for opaque objects
-        for (std::size_t i : notTwosided) {
-            //set material
-            uint32_t matId = scene[i]->matId;
-            materials[matId].Setup(
-                lightningProgram,
-                textures,
-                GL_TEXTURE0,
-                GL_TEXTURE1,
-                GL_TEXTURE2,
-                0,
-                1,
-                2);
-            //set uniforms with transforms
-            lightningProgram.SetUniform("model", scene[i]->model);
-            lightningProgram.SetUniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(view * scene[i]->model))));
-            scene[i]->Draw();
-        }
-
-        glDisable(GL_CULL_FACE); //disable face culling for transparent objects
-        for (std::size_t i : twosided) {
-            //set material
-            uint32_t matId = scene[i]->matId;
-            materials[matId].Setup(
-                lightningProgram,
-                textures,
-                GL_TEXTURE0,
-                GL_TEXTURE1,
-                GL_TEXTURE2,
-                0,
-                1,
-                2);
-            //set uniforms with transforms
-            lightningProgram.SetUniform("model", scene[i]->model);
-            lightningProgram.SetUniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(view * scene[i]->model))));
-            scene[i]->Draw();
-        }
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glUseProgram(0); //StoptUseShader
-
-        // //draw light sources
-        // glUseProgram(sourceProgram.ProgramObj); //StartUseShader
-        // for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
-        //     //model
-        //     model = glm::mat4(1.0f);
-        //     model = glm::translate(model, pointLightPositions[i]);
-        //     model = glm::scale(model, glm::vec3(10.0f));
-        //     //set uniforms with transforms
-        //     sourceProgram.SetUniform("model", model);
-        //     sourceProgram.SetUniform("view", view);
-        //     sourceProgram.SetUniform("projection", projection);
-        //     //color
-        //     sourceProgram.SetUniform("lightColor", colors[i]);
-        //     scene[scene.size() - 1]->Draw();
-        // }
-        // glUseProgram(0); //StopUseShader
+        //render scene to to colorBufferTexture
+        renderScene(lightningProgram);
 
         //draw texture with rendered scene to quad
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        //disable depth testing
-        glDisable(GL_DEPTH_TEST);
-
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        glUseProgram(quadColorProgram.ProgramObj); //StartUseShader
-
-        //set color bufer texture
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
-        quadColorProgram.SetUniform("colorBuffer", 0);
-        quadColorProgram.SetUniform("edgeDetection", state.edgeDetection);
-
-        glBindVertexArray(quadVAO);
-        GL_CHECK_ERRORS;
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-        GL_CHECK_ERRORS;
-        glBindVertexArray(0);
-        GL_CHECK_ERRORS;
-
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glUseProgram(0); //StopUseShader
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
-        //--------------------------------------------------------------------------------------------------------------------
+        visualizeScene(quadColorProgram);
 
         glfwSwapBuffers(window);
     }
     lightningProgram.Release();
-    sourceProgram.Release();
+    depthProgram.Release();
+    quadColorProgram.Release();
+    quadDepthProgram.Release();
 }
 
 void App::release()
@@ -693,22 +679,9 @@ void App::release()
         item.second->Release();
         GL_CHECK_ERRORS;
     }
-    //delete quad
-    glDeleteBuffers(1, &quadVAO);
-    glDeleteBuffers(1, &quadVBO);
-    glDeleteBuffers(1, &quadEBO);
-    //delete color framebuffer
-    glDeleteTextures(1, &colorBufferTexture);
-    GL_CHECK_ERRORS;
-    glDeleteRenderbuffers(1, &colorBufferRBO);
-    GL_CHECK_ERRORS;
-    glDeleteFramebuffers(1, &colorBufferFBO);
-    GL_CHECK_ERRORS;
-    //delete depth map framebuffer
-    glDeleteTextures(1, &depthMapTexture);
-    GL_CHECK_ERRORS;
-    glDeleteFramebuffers(1, &depthMapFBO);
-    GL_CHECK_ERRORS;
+    deleteQuad();
+    deleteColorBuffer();
+    deleteShadowMapBuffer();
     glfwTerminate();
 }
 

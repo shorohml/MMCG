@@ -24,7 +24,7 @@ public:
     bool isFlashlightOn = false; //Is flashlight on?
     bool visualizeNormalsWithColor = false; //normals visualization (with color)
     bool edgeDetection = false; //edgge detection after rendering
-    bool visDepthMap = false; //visualize depth map
+    bool visshadowMap = false; //visualize depth map
     Camera camera; //camera
 
     AppState()
@@ -57,26 +57,41 @@ private:
         {0, Material()}
     }; //add default material
     std::vector<std::unique_ptr<Mesh>> scene;
+    std::vector<std::size_t> twosided;
+    std::vector<std::size_t> notTwosided;
 
     nlohmann::json config; //application config
     GLFWwindow* window; //window
     float printEvery = 1.0f;
+    std::string shadersPath;
 
     //color buffer
     GLuint colorBufferFBO;
     GLuint colorBufferRBO;
     GLuint colorBufferTexture;
+    void setupColorBuffer();
+    void deleteColorBuffer();
+    void renderScene(ShaderProgram &lightningProgram);
 
-    //depth map
-    GLuint depthMapFBO;
-    GLuint depthMapTexture;
-    const uint32_t depthMapWidth = 4096;
-    const uint32_t depthMapHeight = 4096;
+    //shadow map
+    GLuint shadowMapFBO;
+    GLuint shadowMapTexture;
+    const uint32_t shadowMapWidth = 2048;
+    const uint32_t shadowMapHeight = 2048;
+    glm::vec3 dir;
+    glm::mat4 lightSpaceMatrix;
+    void setupShadowMapBuffer();
+    void deleteShadowMapBuffer();
+    void renderShadowMap(ShaderProgram &depthProgram);
 
     //simple quad that fills screen
     GLuint quadVAO;
     GLuint quadVBO;
     GLuint quadEBO;
+    void setupQuad();
+    void deleteQuad();
+    void visualizeShadowMap(ShaderProgram &quadDepthProgram);
+    void visualizeScene(ShaderProgram &quadColorProgram);
 
     int initGL() const;
 
