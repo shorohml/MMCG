@@ -117,19 +117,31 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             state->isFlashlightOn = !(state->isFlashlightOn);
         }
         break;
-    case GLFW_KEY_N: //turn flashlight on/off
+    case GLFW_KEY_1: //shadow map
         if (action == GLFW_PRESS) {
-            state->visualizeNormalsWithColor = !(state->visualizeNormalsWithColor);
+            if (state->renderingMode == RenderingMode::SHADOW_MAP) {
+                state->renderingMode = RenderingMode::DEFAULT;
+            } else {
+                state->renderingMode = RenderingMode::SHADOW_MAP;
+            }
         }
         break;
-    case GLFW_KEY_E: //turn edgeDetection on/off
+    case GLFW_KEY_2: //normals
         if (action == GLFW_PRESS) {
-            state->edgeDetection = !(state->edgeDetection);
+            if (state->renderingMode == RenderingMode::NORMALS_COLOR) {
+                state->renderingMode = RenderingMode::DEFAULT;
+            } else {
+                state->renderingMode = RenderingMode::NORMALS_COLOR;
+            }
         }
         break;
-    case GLFW_KEY_V: //turn depth bufer visualization on/off
+    case GLFW_KEY_3: //edge detection
         if (action == GLFW_PRESS) {
-            state->visshadowMap = !(state->visshadowMap);
+            if (state->renderingMode == RenderingMode::EDGE_DETECTION) {
+                state->renderingMode = RenderingMode::DEFAULT;
+            } else {
+                state->renderingMode = RenderingMode::EDGE_DETECTION;
+            }
         }
         break;
     default:
@@ -409,7 +421,6 @@ void App::renderShadowMap(ShaderProgram &depthProgram)
     }
 
     glUseProgram(0); //StoptUseShader
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void App::visualizeShadowMap(ShaderProgram &quadDepthProgram)
@@ -438,7 +449,6 @@ void App::visualizeShadowMap(ShaderProgram &quadDepthProgram)
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0); //StopUseShader
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void App::renderScene(ShaderProgram &lightningProgram)
@@ -461,7 +471,7 @@ void App::renderScene(ShaderProgram &lightningProgram)
     float ratio = static_cast<float>(config["width"]) / static_cast<float>(config["height"]);
     glm::mat4 projection = glm::perspective(glm::radians(state.camera.Zoom), ratio, 1.0f, 3000.0f);
 
-    lightningProgram.SetUniform("visualizeNormalsWithColor", state.visualizeNormalsWithColor);
+    lightningProgram.SetUniform("visualizeNormalsWithColor", state.renderingMode == RenderingMode::NORMALS_COLOR);
 
     //set spotlight source
     lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
@@ -552,7 +562,7 @@ void App::visualizeScene(ShaderProgram &quadColorProgram)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
     quadColorProgram.SetUniform("colorBuffer", 0);
-    quadColorProgram.SetUniform("edgeDetection", state.edgeDetection);
+    quadColorProgram.SetUniform("edgeDetection", state.renderingMode == RenderingMode::EDGE_DETECTION);
 
     glBindVertexArray(quadVAO);
     GL_CHECK_ERRORS;
@@ -648,7 +658,7 @@ void App::mainLoop()
         renderShadowMap(depthProgram);
 
         // visualize shadow map
-        if (state.visshadowMap) {
+        if (state.renderingMode == RenderingMode::SHADOW_MAP) {
             //draw texture with shadow map to quad
             visualizeShadowMap(quadDepthProgram);
             glfwSwapBuffers(window);

@@ -12,6 +12,13 @@
 #include <unordered_map>
 #include <vector>
 
+enum RenderingMode {
+    DEFAULT,
+    NORMALS_COLOR,
+    EDGE_DETECTION,
+    SHADOW_MAP,
+};
+
 struct AppState {
 public:
     float deltaTime = 0.0f; //Time between current frame and last frame
@@ -22,9 +29,7 @@ public:
     std::vector<bool> keys; //массив состояний кнопок - нажата/не нажата
     bool g_captureMouse = true; //Мышка захвачена нашим приложением или нет?
     bool isFlashlightOn = false; //Is flashlight on?
-    bool visualizeNormalsWithColor = false; //normals visualization (with color)
-    bool edgeDetection = false; //edgge detection after rendering
-    bool visshadowMap = false; //visualize depth map
+    RenderingMode renderingMode = RenderingMode::DEFAULT;
     Camera camera; //camera
 
     AppState()
@@ -76,8 +81,8 @@ private:
     //shadow map
     GLuint shadowMapFBO;
     GLuint shadowMapTexture;
-    const uint32_t shadowMapWidth = 2048;
-    const uint32_t shadowMapHeight = 2048;
+    const uint32_t shadowMapWidth = 4096;
+    const uint32_t shadowMapHeight = 4096;
     glm::vec3 dir;
     glm::mat4 lightSpaceMatrix;
     void setupShadowMapBuffer();
