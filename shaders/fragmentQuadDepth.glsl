@@ -7,10 +7,10 @@ in VS_OUT
 }
 fsIn;
 
-uniform sampler2D depthMap;
+uniform sampler2D shadowMap;
 
 void main()
 {
-    float depth = texture(depthMap, fsIn.texCoords).r;
+    float depth = texture(shadowMap, fsIn.texCoords).r;
     FragColor = vec4(vec3(depth), 1.0);
 }
