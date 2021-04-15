@@ -50,6 +50,7 @@ target_link_libraries(main
     glfw
     assimp
     glm
-    nlohmann_json)
+    nlohmann_json
+    ${CMAKE_DL_LIBS})
 
 target_compile_options(main PRIVATE -Werror -Wall -Wextra)
