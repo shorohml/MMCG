@@ -96,12 +96,12 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
     AppState* state = reinterpret_cast<AppState*>(glfwGetWindowUserPointer(window));
 
     switch (key) {
-    case GLFW_KEY_ESCAPE: //на Esc выходим из программы
+    case GLFW_KEY_ESCAPE: //exit program
         if (action == GLFW_PRESS) {
             glfwSetWindowShouldClose(window, GL_TRUE);
         }
         break;
-    case GLFW_KEY_SPACE: //на пробел переключение в каркасный режим и обратно
+    case GLFW_KEY_SPACE: //switch polygon mode
         if (action == GLFW_PRESS) {
             if (state->filling == 0) {
                 glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
