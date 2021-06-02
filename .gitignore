@@ -35,3 +35,11 @@
 
 # VS Code
 /.vscode
+
+# CMake build stuff
+/include/_deps
+CMakeFiles/
+include/external/
+include/cmake*
+include/CMake*
+include/Makefile

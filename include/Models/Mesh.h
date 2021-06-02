@@ -19,7 +19,7 @@ struct AABBOX {
     }
 };
 
-class Mesh {
+struct Mesh {
 public:
     std::vector<glm::vec3> positions;
     std::vector<glm::vec3> normals;
@@ -32,23 +32,10 @@ public:
     std::vector<glm::vec3> tangents;
     std::vector<glm::vec3> bitangents;
     std::string name;
+    bool isEmpty;
 
-    Mesh(
-        std::vector<glm::vec3>&& positions_,
-        std::vector<glm::vec3>&& normals_,
-        std::vector<glm::vec2>&& texCoords_,
-        std::vector<uint32_t>&& indices_,
-        uint32_t matId_ = 0,
-        glm::mat4 model_ = glm::mat4(1.0f),
-        bool isStatic_ = true)
-        : positions(std::move(positions_))
-        , normals(std::move(normals_))
-        , texCoords(std::move(texCoords_))
-        , indices(std::move(indices_))
-        , matId(matId_)
-        , model(model_)
-        , isStatic(isStatic_)
-        , hasTangentsBitangents(false)
+    Mesh()
+        : isEmpty(true)
     {
     }
 
@@ -68,6 +55,7 @@ public:
         , model(model_)
         , isStatic(isStatic_)
         , hasTangentsBitangents(false)
+        , isEmpty(false)
     {
     }
 
@@ -91,6 +79,7 @@ public:
         , hasTangentsBitangents(true)
         , tangents(std::move(tangents_))
         , bitangents(std::move(bitangents_))
+        , isEmpty(false)
     {
     }
 
@@ -122,7 +111,7 @@ public:
         return isLoaded;
     }
 
-    AABBOX GetAABBOX(const bool inWorldSpace = true) const; 
+    AABBOX GetAABBOX(const bool inWorldSpace = true) const;
 
 private:
     bool isLoaded = false;

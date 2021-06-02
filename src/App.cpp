@@ -1,6 +1,7 @@
 #include "App.h"
 #include "Models/ImportScene.h"
 #include "ShaderProgram.h"
+#include "Simulation/Cloth.h"
 #include <map>
 
 App::App(const std::string& pathToConfig)
@@ -223,6 +224,7 @@ void App::loadModels()
     scene = unifyStaticMeshes(scene, materials);
     scene.push_back(createCube());
     scene[scene.size() - 1]->name = "lightCube";
+
     //separate meshes with and without face culling
     for (std::size_t i = 0; i < scene.size() - 1; ++i) {
         uint32_t matId = scene[i]->matId;
@@ -232,6 +234,7 @@ void App::loadModels()
             notTwosided.push_back(i);
         }
     }
+
     //compute scene bounding box
     AABBOX sceneBBOX = scene[0]->GetAABBOX();
     for (std::size_t i = 1; i < scene.size(); ++i) {
@@ -402,7 +405,7 @@ void App::deleteQuad()
     glDeleteBuffers(1, &quadEBO);
 }
 
-void App::renderShadowMap(ShaderProgram &depthProgram)
+void App::renderShadowMap(ShaderProgram& depthProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
 
@@ -423,7 +426,7 @@ void App::renderShadowMap(ShaderProgram &depthProgram)
     glUseProgram(0); //StoptUseShader
 }
 
-void App::visualizeShadowMap(ShaderProgram &quadDepthProgram)
+void App::visualizeShadowMap(ShaderProgram& quadDepthProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -451,7 +454,7 @@ void App::visualizeShadowMap(ShaderProgram &quadDepthProgram)
     glUseProgram(0); //StopUseShader
 }
 
-void App::renderScene(ShaderProgram &lightningProgram)
+void App::renderScene(ShaderProgram& lightningProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
 
@@ -546,7 +549,7 @@ void App::renderScene(ShaderProgram &lightningProgram)
     glUseProgram(0); //StoptUseShader
 }
 
-void App::visualizeScene(ShaderProgram &quadColorProgram)
+void App::visualizeScene(ShaderProgram& quadColorProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -620,6 +623,18 @@ void App::mainLoop()
     glfwWindowHint(GLFW_SAMPLES, 4);
     glEnable(GL_MULTISAMPLE);
 
+    //create cloth
+    Cloth cloth(
+        glm::vec3(-200.0f, 150.0f, -250.0f),
+        100.0f,
+        150.0f,
+        10,
+        15
+    );
+    cloth.mesh.GLLoad();
+    scene.push_back(std::make_unique<Mesh>(cloth.mesh));
+    twosided.push_back(scene.size() - 1);
+
     //main loop with scene rendering at every frame
     uint32_t frameCount = 0;
     float deltaSum = 0.0f;
@@ -669,14 +684,20 @@ void App::mainLoop()
         renderScene(lightningProgram);
 
         //draw texture with rendered scene to quad
+        if (state.filling == 0) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
         visualizeScene(quadColorProgram);
-
         glfwSwapBuffers(window);
+        if (state.filling == 0) {
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        }
     }
     lightningProgram.Release();
     depthProgram.Release();
     quadColorProgram.Release();
     quadDepthProgram.Release();
+    cloth.mesh.Release();
 }
 
 void App::release()
