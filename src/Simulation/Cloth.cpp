@@ -13,7 +13,7 @@ void Cloth::createMassesAndSprings()
                     lowerLeftCorner.x,
                     heightPos,
                     widthPos),
-                true);
+                false);
         }
     }
 
@@ -74,7 +74,7 @@ void Cloth::createMassesAndSprings()
     }
 }
 
-Mesh Cloth::createMesh()
+std::shared_ptr<Mesh> Cloth::createMesh()
 {
     //positions and texture coordinates
     std::vector<glm::vec3> positions(pointMasses.size());
@@ -86,8 +86,7 @@ Mesh Cloth::createMesh()
         std::uint32_t col = i % widthPoints;
         texCoords[i] = glm::vec2(
             1.0f / widthPoints * col,
-            1.0f / heightPoints * row
-        );
+            1.0f / heightPoints * row);
     }
 
     //indices
@@ -135,15 +134,14 @@ Mesh Cloth::createMesh()
         normals[i] = glm::normalize(normalsTmp[i]);
     }
 
-    return Mesh(
+    return std::make_shared<Mesh>(
         positions,
         normals,
         texCoords,
         indices,
         0,
         glm::mat4(1.0f),
-        false
-    );
+        false);
 }
 
 Cloth::Cloth(
@@ -163,4 +161,83 @@ Cloth::Cloth(
     }
     createMassesAndSprings();
     mesh = createMesh();
+}
+
+void Cloth::recomputePositionsNormals()
+{
+    //set positions from point masses
+    for (std::uint32_t i = 0; i < pointMasses.size(); ++i) {
+        mesh->positions[i] = pointMasses[i].currentPosition;
+    }
+
+    //compute normals
+    std::vector<glm::vec3> normalsTmp(pointMasses.size(), glm::vec3(0.0f));
+    for (std::uint32_t i = 0; i < triangles.size(); ++i) {
+        glm::vec3 v1 = mesh->positions[triangles[i].x];
+        glm::vec3 v2 = mesh->positions[triangles[i].y];
+        glm::vec3 v3 = mesh->positions[triangles[i].z];
+
+        glm::vec3 edge1(glm::normalize(v2 - v1));
+        glm::vec3 edge2(glm::normalize(v3 - v1));
+
+        glm::vec3 faceNormal = glm::cross(edge1, edge2);
+
+        normalsTmp.at(triangles[i].x) += faceNormal;
+        normalsTmp.at(triangles[i].y) += faceNormal;
+        normalsTmp.at(triangles[i].z) += faceNormal;
+    }
+    for (std::uint32_t i = 0; i < normalsTmp.size(); ++i) {
+        mesh->normals[i] = glm::normalize(normalsTmp[i]);
+    }
+}
+
+void Cloth::simulate(
+    float dt,
+    std::uint32_t simulationSteps,
+    std::vector<glm::vec3> accelerations)
+{
+    float mass = density * width * height / widthPoints / heightPoints;
+    dt /= simulationSteps;
+
+    //compute total force acting on point masses
+    //external forces
+    glm::vec3 externalForce(0.0f); //same for each mass
+    for (std::uint32_t i = 0; i < accelerations.size(); ++i) {
+        externalForce += mass * accelerations[i];
+    }
+    for (std::uint32_t i = 0; i < pointMasses.size(); ++i) {
+        pointMasses[i].forces = externalForce;
+    }
+    //spring correction forces (Hooke's law)
+    for (std::uint32_t i = 0; i < springs.size(); ++i) {
+        glm::vec3 dir = springs[i].start->currentPosition - springs[i].end->currentPosition;
+        float dist = glm::length(dir);
+        dir = glm::normalize(dir);
+        float magnitude = ks * (dist - springs[i].restLength);
+        if (springs[i].constraint == Constraint::BENDING) {
+            magnitude *= 0.2;
+        }
+        springs[i].start->forces -= magnitude * dir;
+        springs[i].end->forces += magnitude * dir;
+    }
+
+    //verlet integration
+    for (std::uint32_t i = 0; i < pointMasses.size(); ++i) {
+        if (pointMasses[i].pinned) {
+            std::cout << "pinned" << std::endl;
+            continue;
+        }
+        glm::vec3 diff = pointMasses[i].currentPosition - pointMasses[i].previousPosition;
+        diff *= 1 - dumping / 100;
+        pointMasses[i].previousPosition = pointMasses[i].currentPosition;
+        pointMasses[i].currentPosition += diff + pointMasses[i].forces / mass * dt * dt;
+    }
+
+    // std::cout << pointMasses[pointMasses.size() - 1].currentPosition.y << std::endl;
+
+    //constrain position updates (https://www.cs.rpi.edu/~cutler/classes/advancedgraphics/S14/papers/provot_cloth_simulation_96.pdf)
+    // for (std::uint32_t i = 0; i < springs.size(); ++i) {
+    //     glm::vec3 dir = springs[i].start->currentPosition - springs[i].end->currentPosition;
+    //     float dist = glm::length(dir);
+    // }
 }

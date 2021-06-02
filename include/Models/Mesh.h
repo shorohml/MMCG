@@ -100,6 +100,7 @@ public:
     }
 
     void GLLoad();
+    void GLUpdatePositionsNormals();
 
     void Draw() const;
     void Draw(const std::vector<glm::mat4>& modelMatrices) const;

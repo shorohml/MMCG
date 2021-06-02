@@ -126,6 +126,28 @@ void Mesh::GLLoad()
     isLoaded = true;
 }
 
+void Mesh::GLUpdatePositionsNormals()
+{
+    if (!isLoaded) {
+        return;
+    }
+    //VAO
+    glBindVertexArray(VAO);
+    GL_CHECK_ERRORS;
+
+    //positions
+    glBindBuffer(GL_ARRAY_BUFFER, positionsVBO);
+    GL_CHECK_ERRORS;
+    glBufferSubData(GL_ARRAY_BUFFER, 0, positions.size() * sizeof(GL_FLOAT) * 3, positions.data());
+    GL_CHECK_ERRORS;
+
+    //normals
+    glBindBuffer(GL_ARRAY_BUFFER, normalsVBO);
+    GL_CHECK_ERRORS;
+    glBufferSubData(GL_ARRAY_BUFFER, 0, normals.size() * sizeof(GL_FLOAT) * 3, normals.data());
+    GL_CHECK_ERRORS;
+}
+
 //draw without instancing - select vertexPhong.glsl vertex shader
 void Mesh::Draw() const
 {
@@ -166,6 +188,11 @@ void Mesh::Release()
     glDeleteBuffers(1, &positionsVBO);
     glDeleteBuffers(1, &normalsVBO);
     glDeleteBuffers(1, &texCoordsVBO);
+    glDeleteBuffers(1, &modelsVBO);
+    if (hasTangentsBitangents) {
+        glDeleteBuffers(1, &tangentsVBO);
+        glDeleteBuffers(1, &bitangentsVBO);
+    }
     glDeleteBuffers(1, &EBO);
     isLoaded = false;
 }

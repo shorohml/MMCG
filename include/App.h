@@ -61,7 +61,9 @@ private:
     std::unordered_map<uint32_t, Material> materials = {
         {0, Material()}
     }; //add default material
-    std::vector<std::unique_ptr<Mesh>> scene;
+    //have to use shared_ptr for cloth simulation to work
+    //(need a pointer to the same Mesh here and in Cloth)
+    std::vector<std::shared_ptr<Mesh>> scene;
     std::vector<std::size_t> twosided;
     std::vector<std::size_t> notTwosided;
 

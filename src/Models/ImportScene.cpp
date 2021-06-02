@@ -35,7 +35,7 @@ void fromAiMesh(
     const aiMesh* assimpMesh,
     const aiScene* assimpScene,
     const glm::mat4& model,
-    std::vector<std::unique_ptr<Mesh>>& scene,
+    std::vector<std::shared_ptr<Mesh>>& scene,
     const uint32_t maxMatId)
 {
     if (!assimpMesh->HasPositions() || !assimpMesh->HasFaces() || !assimpMesh->HasNormals()) {
@@ -74,9 +74,9 @@ void fromAiMesh(
         matId = maxMatId + 1 + assimpMesh->mMaterialIndex;
     }
     if (!hasTangentsBitangents) {
-        scene.push_back(std::make_unique<Mesh>(positions, normals, texCoords, indices, matId, model));
+        scene.push_back(std::make_shared<Mesh>(positions, normals, texCoords, indices, matId, model));
     } else {
-        scene.push_back(std::make_unique<Mesh>(positions, normals, texCoords, indices, tangents, bitangents, matId, model));
+        scene.push_back(std::make_shared<Mesh>(positions, normals, texCoords, indices, tangents, bitangents, matId, model));
     }
     scene[scene.size() - 1]->name = std::string(assimpMesh->mName.C_Str());
 }
@@ -85,7 +85,7 @@ void fromAiNode(
     const aiNode* node,
     const aiScene* assimpScene,
     const glm::mat4& parentModel,
-    std::vector<std::unique_ptr<Mesh>>& scene,
+    std::vector<std::shared_ptr<Mesh>>& scene,
     const uint32_t maxMatId)
 {
     //model is parent model multiplied with transform
@@ -121,7 +121,7 @@ void fromAiNode(
 
 void importSceneFromFile(
     const std::string& path,
-    std::vector<std::unique_ptr<Mesh>>& scene,
+    std::vector<std::shared_ptr<Mesh>>& scene,
     std::unordered_map<uint32_t, Material>& materials,
     std::unordered_map<std::string, std::unique_ptr<Texture>>& textures)
 {
@@ -229,8 +229,8 @@ void importSceneFromFile(
 
 //All dinamic meshes will be moved from old scene!
 //For now assume all static meshes have tangents and bitangents
-std::vector<std::unique_ptr<Mesh>> unifyStaticMeshes(
-    std::vector<std::unique_ptr<Mesh>>& scene,
+std::vector<std::shared_ptr<Mesh>> unifyStaticMeshes(
+    std::vector<std::shared_ptr<Mesh>>& scene,
     const std::unordered_map<uint32_t, Material>& materials)
 {
     std::unordered_map<uint32_t, std::vector<uint32_t>> materialToMeshIdx;
@@ -251,7 +251,7 @@ std::vector<std::unique_ptr<Mesh>> unifyStaticMeshes(
         materialToMeshIdx[scene[i]->matId].push_back(i);
     }
 
-    std::vector<std::unique_ptr<Mesh>> newScene;
+    std::vector<std::shared_ptr<Mesh>> newScene;
     for (const auto& item : materialToMeshIdx) {
         if (item.second.size() == 0) {
             continue;
@@ -284,7 +284,7 @@ std::vector<std::unique_ptr<Mesh>> unifyStaticMeshes(
             vertexShift += scene[i]->numberOfVertices();
             faceShift += scene[i]->numberOfFaces() * 3;
         }
-        newScene.push_back(std::make_unique<Mesh>(
+        newScene.push_back(std::make_shared<Mesh>(
             positions, normals, texCoords, indices, tangents, bitangents, item.first, glm::mat4(1.0f)));
     }
     for (std::size_t i : skipped) {

@@ -222,8 +222,6 @@ void App::loadModels()
         materials,
         textures);
     scene = unifyStaticMeshes(scene, materials);
-    scene.push_back(createCube());
-    scene[scene.size() - 1]->name = "lightCube";
 
     //separate meshes with and without face culling
     for (std::size_t i = 0; i < scene.size() - 1; ++i) {
@@ -628,12 +626,15 @@ void App::mainLoop()
         glm::vec3(-200.0f, 150.0f, -250.0f),
         100.0f,
         150.0f,
-        10,
-        15
+        30,
+        45
     );
-    cloth.mesh.GLLoad();
-    scene.push_back(std::make_unique<Mesh>(cloth.mesh));
+    cloth.mesh->GLLoad();
+    scene.push_back(cloth.mesh);
     twosided.push_back(scene.size() - 1);
+    std::vector<glm::vec3> accelerations = {
+        glm::vec3(0.0f, -9.8f, 0.0f)
+    };
 
     //main loop with scene rendering at every frame
     uint32_t frameCount = 0;
@@ -669,6 +670,17 @@ void App::mainLoop()
         glfwPollEvents();
         doCameraMovement();
 
+        //simulate cloth movement
+        for (std::uint32_t i = 0; i < 30; ++i) {
+            cloth.simulate(
+                state.deltaTime,
+                30,
+                accelerations
+            );
+        }
+        cloth.recomputePositionsNormals();
+        cloth.mesh->GLUpdatePositionsNormals();
+
         //render shadow map to shadowMapTexture
         renderShadowMap(depthProgram);
 
@@ -697,7 +709,7 @@ void App::mainLoop()
     depthProgram.Release();
     quadColorProgram.Release();
     quadDepthProgram.Release();
-    cloth.mesh.Release();
+    cloth.mesh->Release();
 }
 
 void App::release()

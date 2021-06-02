@@ -12,14 +12,16 @@ enum Constraint {
 
 struct Spring {
 public:
-    Spring(PointMass& start_, PointMass& end_, const Constraint constraint_) : contraint(constraint_)
+    Spring(PointMass& start_, PointMass& end_, const Constraint constraint_)
+        : constraint(constraint_)
     {
         start = std::make_shared<PointMass>(start_);
         end = std::make_shared<PointMass>(end_);
+        restLength = glm::length(start->startPosition - end->startPosition);
     };
 
-private:
+    float restLength;
     std::shared_ptr<PointMass> start;
     std::shared_ptr<PointMass> end;
-    Constraint contraint;
+    Constraint constraint;
 };

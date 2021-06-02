@@ -8,6 +8,8 @@ public:
         : startPosition(startPosition_)
         , pinned(pinned_)
         , currentPosition(startPosition_)
+        , previousPosition(startPosition_)
+        , forces(glm::vec3(0.0f))
     {
     }
 
@@ -17,4 +19,6 @@ public:
 
     //dynamic
     glm::vec3 currentPosition;
+    glm::vec3 previousPosition;
+    glm::vec3 forces;
 };
