@@ -4,7 +4,7 @@
 
 struct PointMass {
 public:
-    PointMass(const glm::vec3& startPosition_, const bool pinned_)
+    PointMass(const glm::dvec3& startPosition_, const bool pinned_)
         : startPosition(startPosition_)
         , pinned(pinned_)
         , currentPosition(startPosition_)
@@ -14,11 +14,11 @@ public:
     }
 
     //static
-    glm::vec3 startPosition;
+    glm::dvec3 startPosition;
     bool pinned;
 
     //dynamic
-    glm::vec3 currentPosition;
-    glm::vec3 previousPosition;
-    glm::vec3 forces;
+    glm::dvec3 currentPosition;
+    glm::dvec3 previousPosition;
+    glm::dvec3 forces;
 };

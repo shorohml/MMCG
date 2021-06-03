@@ -2,9 +2,9 @@
 #pragma once
 
 #include "Camera.h"
-#include "Models/Texture.h"
-#include "Models/Mesh.h"
 #include "Models/Material.h"
+#include "Models/Mesh.h"
+#include "Models/Texture.h"
 
 #include <GLFW/glfw3.h>
 #include <memory>
@@ -59,7 +59,7 @@ private:
 
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
     std::unordered_map<uint32_t, Material> materials = {
-        {0, Material()}
+        { 0, Material() }
     }; //add default material
     //have to use shared_ptr for cloth simulation to work
     //(need a pointer to the same Mesh here and in Cloth)
@@ -78,7 +78,7 @@ private:
     GLuint colorBufferTexture;
     void setupColorBuffer();
     void deleteColorBuffer();
-    void renderScene(ShaderProgram &lightningProgram);
+    void renderScene(ShaderProgram& lightningProgram);
 
     //shadow map
     GLuint shadowMapFBO;
@@ -89,7 +89,7 @@ private:
     glm::mat4 lightSpaceMatrix;
     void setupShadowMapBuffer();
     void deleteShadowMapBuffer();
-    void renderShadowMap(ShaderProgram &depthProgram);
+    void renderShadowMap(ShaderProgram& depthProgram);
 
     //simple quad that fills screen
     GLuint quadVAO;
@@ -97,8 +97,8 @@ private:
     GLuint quadEBO;
     void setupQuad();
     void deleteQuad();
-    void visualizeShadowMap(ShaderProgram &quadDepthProgram);
-    void visualizeScene(ShaderProgram &quadColorProgram);
+    void visualizeShadowMap(ShaderProgram& quadDepthProgram);
+    void visualizeScene(ShaderProgram& quadColorProgram);
 
     int initGL() const;
 

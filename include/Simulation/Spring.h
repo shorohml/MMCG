@@ -13,7 +13,7 @@ enum Constraint {
 struct Spring {
 public:
     //TODO: change to indexes (or to smart pointers)
-    Spring(PointMass *start_, PointMass *end_, const Constraint constraint_)
+    Spring(PointMass* start_, PointMass* end_, const Constraint constraint_)
         : constraint(constraint_)
     {
         start = start_;
@@ -21,8 +21,8 @@ public:
         restLength = glm::length(start->startPosition - end->startPosition);
     };
 
-    float restLength;
-    PointMass *start;
-    PointMass *end;
+    double restLength;
+    PointMass* start;
+    PointMass* end;
     Constraint constraint;
 };

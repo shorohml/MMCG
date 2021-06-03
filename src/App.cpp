@@ -627,13 +627,12 @@ void App::mainLoop()
         150.0f,
         150.0f,
         30,
-        30
-    );
+        30);
     cloth.mesh->GLLoad();
     scene.push_back(cloth.mesh);
     twosided.push_back(scene.size() - 1);
-    std::vector<glm::vec3> accelerations = {
-        glm::vec3(0.0f, -9.8f, 0.0f)
+    std::vector<glm::dvec3> accelerations = {
+        glm::dvec3(0.0, -9.8, 0.0)
     };
 
     //main loop with scene rendering at every frame
@@ -671,18 +670,13 @@ void App::mainLoop()
         doCameraMovement();
 
         //simulate cloth movement
-        for (std::uint32_t i = 0; i < 15; ++i) {
+        for (std::uint32_t i = 0; i < 30; ++i) {
             cloth.simulate(
                 state.deltaTime,
-                15,
-                accelerations
-            );
+                30,
+                accelerations);
         }
         cloth.recomputePositionsNormals();
-
-        // auto bbox = cloth.mesh->GetAABBOX();
-        // std::cout << bbox.min.y << std::endl;
-
         cloth.mesh->GLUpdatePositionsNormals();
 
         //render shadow map to shadowMapTexture
