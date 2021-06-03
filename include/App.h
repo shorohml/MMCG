@@ -13,10 +13,10 @@
 #include <vector>
 
 enum RenderingMode {
-    DEFAULT,
+    DEFAULT = 0,
+    SHADOW_MAP,
     NORMALS_COLOR,
     EDGE_DETECTION,
-    SHADOW_MAP,
 };
 
 struct AppState {

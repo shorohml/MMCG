@@ -126,7 +126,12 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
         std::cout << state->camera.Position.x << ' ' << state->camera.Position.y << ' ' << state->camera.Position.z << std::endl;
         std::cout << "yaw = " << state->camera.Yaw << ", pitch = " << state->camera.Pitch << std::endl;
         break;
-    case GLFW_KEY_1: //shadow map
+    case GLFW_KEY_1: //default rendring
+        if (action == GLFW_PRESS) {
+            state->renderingMode = RenderingMode::DEFAULT;
+        }
+        break;
+    case GLFW_KEY_2: //shadow map
         if (action == GLFW_PRESS) {
             if (state->renderingMode == RenderingMode::SHADOW_MAP) {
                 state->renderingMode = RenderingMode::DEFAULT;
@@ -135,7 +140,7 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             }
         }
         break;
-    case GLFW_KEY_2: //normals
+    case GLFW_KEY_3: //normals
         if (action == GLFW_PRESS) {
             if (state->renderingMode == RenderingMode::NORMALS_COLOR) {
                 state->renderingMode = RenderingMode::DEFAULT;
@@ -144,7 +149,7 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             }
         }
         break;
-    case GLFW_KEY_3: //edge detection
+    case GLFW_KEY_4: //edge detection
         if (action == GLFW_PRESS) {
             if (state->renderingMode == RenderingMode::EDGE_DETECTION) {
                 state->renderingMode = RenderingMode::DEFAULT;
