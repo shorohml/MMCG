@@ -15,7 +15,8 @@ public:
         const std::uint32_t widthPoints_,
         const std::uint32_t heightPoints_);
 
-    std::shared_ptr<Mesh> mesh;
+    std::shared_ptr<Mesh> mesh1;
+    std::shared_ptr<Mesh> mesh2;
 
     void simulate(
         double deltaTime,
@@ -23,7 +24,8 @@ public:
         std::vector<glm::dvec3> accelerations);
 
     void createMassesAndSprings();
-    std::shared_ptr<Mesh> createMesh();
+    std::shared_ptr<Mesh> createMesh(glm::dvec3 offset, bool side);
+    void recomputePositionsNormals(glm::dvec3 offset, bool side);
     void recomputePositionsNormals();
 
 private:
@@ -36,7 +38,8 @@ private:
 
     std::vector<PointMass> pointMasses;
     std::vector<Spring> springs;
-    std::vector<glm::ivec3> triangles;
+    std::vector<glm::ivec3> triangles1;
+    std::vector<glm::ivec3> triangles2;
 
     //TODO: initialize this from config
     double dumping = 0.2; // %, to simulate loss of energy due to friction etc

@@ -669,11 +669,15 @@ void App::mainLoop()
     };
     for (auto& mat : materials) {
         if (mat.second.name == std::string("fabric_a")) {
-            cloth.mesh->matId = mat.first;
+            cloth.mesh1->matId = mat.first;
+            cloth.mesh2->matId = mat.first;
         }
     }
-    cloth.mesh->GLLoad();
-    scene.push_back(cloth.mesh);
+    cloth.mesh1->GLLoad();
+    cloth.mesh2->GLLoad();
+    scene.push_back(cloth.mesh1);
+    scene.push_back(cloth.mesh2);
+    twosided.push_back(scene.size() - 2);
     twosided.push_back(scene.size() - 1);
 
     //main loop with scene rendering at every frame
@@ -722,7 +726,8 @@ void App::mainLoop()
                 accelerations);
         }
         cloth.recomputePositionsNormals();
-        cloth.mesh->GLUpdatePositionsNormals();
+        cloth.mesh1->GLUpdatePositionsNormals();
+        cloth.mesh2->GLUpdatePositionsNormals();
 
         //render shadow map to shadowMapTexture
         renderShadowMap(depthProgram);

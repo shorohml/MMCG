@@ -83,13 +83,13 @@ void Cloth::createMassesAndSprings()
     }
 }
 
-std::shared_ptr<Mesh> Cloth::createMesh()
+std::shared_ptr<Mesh> Cloth::createMesh(glm::dvec3 offset, bool side)
 {
     //positions and texture coordinates
     std::vector<glm::vec3> positions(pointMasses.size());
     std::vector<glm::vec2> texCoords(pointMasses.size());
     for (std::uint32_t i = 0; i < pointMasses.size(); ++i) {
-        positions[i] = pointMasses[i].currentPosition;
+        positions[i] = pointMasses[i].currentPosition + offset;
         //compute texture coords (in [0, 1])
         std::uint32_t row = i / widthPoints;
         std::uint32_t col = i % widthPoints;
@@ -99,6 +99,7 @@ std::shared_ptr<Mesh> Cloth::createMesh()
     }
 
     //indices
+    std::vector<glm::ivec3> &triangles = side ? triangles1 : triangles2;
     std::uint32_t numIndices = 6 * (heightPoints - 1) * (widthPoints - 1);
     std::vector<std::uint32_t> indices;
     indices.reserve(numIndices);
@@ -107,8 +108,15 @@ std::shared_ptr<Mesh> Cloth::createMesh()
         for (std::uint32_t j = 0; j < widthPoints - 1; ++j) {
             std::uint32_t offset = i * widthPoints + j;
 
-            glm::ivec3 triangle_1(offset, offset + 1 + widthPoints, offset + 1);
-            glm::ivec3 triangle_2(offset, offset + widthPoints, offset + 1 + widthPoints);
+            glm::ivec3 triangle_1;
+            glm::ivec3 triangle_2;
+            if (side) {
+                triangle_1 = glm::ivec3(offset, offset + 1 + widthPoints, offset + 1);
+                triangle_2 = glm::ivec3(offset, offset + widthPoints, offset + 1 + widthPoints);
+            } else {
+                triangle_1 = glm::ivec3(offset, offset + 1, offset + 1 + widthPoints);
+                triangle_2 = glm::ivec3(offset, offset + 1 + widthPoints, offset + widthPoints);
+            }
 
             triangles.push_back(triangle_1);
             triangles.push_back(triangle_2);
@@ -170,14 +178,18 @@ Cloth::Cloth(
     }
     width = glm::length(upperLeftCorner_ - upperRightCorner_);
     createMassesAndSprings();
-    mesh = createMesh();
+    mesh1 = createMesh(glm::dvec3(0.0), true);
+    mesh2 = createMesh(glm::dvec3(0.2, 0.0, 0.0), false);
 }
 
-void Cloth::recomputePositionsNormals()
+void Cloth::recomputePositionsNormals(glm::dvec3 offset, bool side)
 {
+    std::shared_ptr<Mesh> mesh = side ? mesh1 : mesh2;
+    std::vector<glm::ivec3> &triangles = side ? triangles1 : triangles2;
+
     //set positions from point masses
     for (std::uint32_t i = 0; i < pointMasses.size(); ++i) {
-        mesh->positions[i] = pointMasses[i].currentPosition;
+        mesh->positions[i] = pointMasses[i].currentPosition + offset;
     }
 
     //compute normals
@@ -199,6 +211,12 @@ void Cloth::recomputePositionsNormals()
     for (std::uint32_t i = 0; i < normalsTmp.size(); ++i) {
         mesh->normals[i] = glm::normalize(normalsTmp[i]);
     }
+}
+
+void Cloth::recomputePositionsNormals()
+{
+    recomputePositionsNormals(glm::dvec3(0.0), true);
+    recomputePositionsNormals(glm::dvec3(0.2, 0.0, 0.0), false);
 }
 
 void Cloth::simulate(
