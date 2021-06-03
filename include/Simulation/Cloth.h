@@ -9,8 +9,8 @@
 struct Cloth {
 public:
     Cloth(
-        const glm::dvec3& lowerLeftCorner_,
-        const double width_,
+        const glm::dvec3& upperLeftCorner_,
+        const glm::dvec3& upperRightCorner_,
         const double height_,
         const std::uint32_t widthPoints_,
         const std::uint32_t heightPoints_);
@@ -27,7 +27,8 @@ public:
     void recomputePositionsNormals();
 
 private:
-    glm::dvec3 lowerLeftCorner;
+    glm::dvec3 upperLeftCorner;
+    glm::dvec3 upperRightCorner;
     double width;
     double height;
     std::uint32_t widthPoints;

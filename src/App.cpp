@@ -626,16 +626,46 @@ void App::mainLoop()
     glfwWindowHint(GLFW_SAMPLES, 4);
     glEnable(GL_MULTISAMPLE);
 
+    glm::dvec3 poleLeft;
+    glm::dvec3 poleRight;
+    for (auto& mesh : scene) {
+        if (materials[mesh->matId].name == std::string("flagpole")) {
+            auto bbox = mesh->GetAABBOX();
+            if (bbox.max.z - bbox.min.z < 190.0f) {
+                continue;
+            }
+            //select left- and right-most vertices
+            double minZ = mesh->positions[0].z;
+            double maxZ = mesh->positions[0].z;
+            for (std::uint32_t i = 0; i < mesh->positions.size(); ++i) {
+                if (mesh->positions[i].z < minZ) {
+                    minZ = mesh->positions[i].z;
+                    poleLeft = mesh->positions[i];
+                }
+                if (mesh->positions[i].z > maxZ) {
+                    maxZ = mesh->positions[i].z;
+                    poleRight = mesh->positions[i];
+                }
+            }
+            break;
+        }
+    }
+    auto dir = poleRight - poleLeft;
+    auto len = glm::length(dir);
+    dir = glm::normalize(dir);
+    poleLeft += len / 5 * dir;
+    poleRight -= len / 5 * dir;
+
     //create cloth
     Cloth cloth(
-        glm::vec3(-100.0f, 250.0f, -250.0f),
-        100.0f,
+        poleLeft,
+        poleRight,
         150.0f,
         30,
         45);
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
-        glm::dvec3(3.0, 0.0, 0.5) //wind force
+        glm::dvec3(7.0, 0.0, 5.0) //wind force
     };
     for (auto& mat : materials) {
         if (mat.second.name == std::string("fabric_a")) {
@@ -645,19 +675,6 @@ void App::mainLoop()
     cloth.mesh->GLLoad();
     scene.push_back(cloth.mesh);
     twosided.push_back(scene.size() - 1);
-
-    int count = 0;
-    for (auto& mesh : scene) {
-        if (materials[mesh->matId].name == std::string("flagpole")) {
-            auto bbox = mesh->GetAABBOX();
-            if (bbox.max.z - bbox.min.z < 190.0f) {
-                continue;
-            }
-            std::cout << "flagpole " << count++ << std::endl;
-            std::cout << bbox.min.x << ' ' << bbox.min.y << ' ' << bbox.min.z << std::endl;
-            std::cout << bbox.max.x << ' ' << bbox.max.y << ' ' << bbox.max.z << std::endl;
-        }
-    }
 
     //main loop with scene rendering at every frame
     uint32_t frameCount = 0;
@@ -695,12 +712,12 @@ void App::mainLoop()
         doCameraMovement();
 
         //recompute wind force
-        accelerations[1].x = 3.0 * sin(currentFrame);
-
+        accelerations[1].x = 7.0 * sin(currentFrame / 3.0);
+        accelerations[1].z = 5.0 * sin(currentFrame);
         //simulate cloth movement
         for (std::uint32_t i = 0; i < 30; ++i) {
             cloth.simulate(
-                state.deltaTime * 10,
+                state.deltaTime * 5,
                 30,
                 accelerations);
         }

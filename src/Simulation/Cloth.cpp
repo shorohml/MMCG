@@ -4,18 +4,26 @@ void Cloth::createMassesAndSprings()
 {
     //create point masses
     pointMasses.reserve(widthPoints * heightPoints);
+    double leftHeight = height;
+    double rightHeight = height;
+    if (upperLeftCorner.y > upperRightCorner.y) {
+        leftHeight += upperLeftCorner.y - upperRightCorner.y;        
+    } else {
+        rightHeight += upperRightCorner.y - upperLeftCorner.y;        
+    }
+    glm::dvec3 left = upperLeftCorner;
+    glm::dvec3 right = upperRightCorner;
     for (std::uint32_t i = 0; i < heightPoints; ++i) {
+        glm::dvec3 dir = right - left;
+        double len = glm::length(dir);
+        dir = glm::normalize(dir);
         for (std::uint32_t j = 0; j < widthPoints; ++j) {
-            double heightPos = lowerLeftCorner.x + height / (heightPoints - 1) * i;
-            double widthPos = lowerLeftCorner.z + width / (widthPoints - 1) * j;
-            bool pinned = i == heightPoints - 1 && (j == 0 || j == widthPoints - 1);
-            pointMasses.emplace_back(
-                glm::dvec3(
-                    heightPos,
-                    lowerLeftCorner.y,
-                    widthPos),
-                pinned);
+            glm::dvec3 pos = left + len / (widthPoints - 1) * j * dir;
+            bool pinned = i == 0 && (j == 0 || j == widthPoints - 1);
+            pointMasses.emplace_back(pos, pinned);
         }
+        left.y -= leftHeight / (heightPoints - 1);
+        right.y -= rightHeight / (heightPoints - 1);
     }
 
     //create springs
@@ -99,8 +107,8 @@ std::shared_ptr<Mesh> Cloth::createMesh()
         for (std::uint32_t j = 0; j < widthPoints - 1; ++j) {
             std::uint32_t offset = i * widthPoints + j;
 
-            glm::ivec3 triangle_1(offset, offset + 1, offset + 1 + widthPoints);
-            glm::ivec3 triangle_2(offset, offset + 1 + widthPoints, offset + widthPoints);
+            glm::ivec3 triangle_1(offset, offset + 1 + widthPoints, offset + 1);
+            glm::ivec3 triangle_2(offset, offset + widthPoints, offset + 1 + widthPoints);
 
             triangles.push_back(triangle_1);
             triangles.push_back(triangle_2);
@@ -146,20 +154,21 @@ std::shared_ptr<Mesh> Cloth::createMesh()
 }
 
 Cloth::Cloth(
-    const glm::dvec3& lowerLeftCorner_,
-    const double width_,
+    const glm::dvec3& upperLeftCorner_,
+    const glm::dvec3& upperRightCorner_,
     const double height_,
     const std::uint32_t widthPoints_,
     const std::uint32_t heightPoints_)
-    : lowerLeftCorner(lowerLeftCorner_)
-    , width(width_)
+    : upperLeftCorner(upperLeftCorner_)
+    , upperRightCorner(upperRightCorner_)
     , height(height_)
     , widthPoints(widthPoints_)
     , heightPoints(heightPoints_)
 {
-    if (widthPoints_ == 0 || heightPoints_ == 0) {
-        throw std::runtime_error("widthPoints and heightPoints must be positive");
+    if (widthPoints_ < 2 || heightPoints_ < 2) {
+        throw std::runtime_error("widthPoints and heightPoints must be >= 2");
     }
+    width = glm::length(upperLeftCorner_ - upperRightCorner_);
     createMassesAndSprings();
     mesh = createMesh();
 }
