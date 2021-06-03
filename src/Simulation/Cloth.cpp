@@ -8,12 +8,13 @@ void Cloth::createMassesAndSprings()
         for (std::uint32_t j = 0; j < widthPoints; ++j) {
             float heightPos = lowerLeftCorner.y + height / (heightPoints - 1) * i;
             float widthPos = lowerLeftCorner.z + width / (widthPoints - 1) * j;
+            bool pinned = i == heightPoints - 1 && (j == 0 || j == widthPoints - 1);
             pointMasses.emplace_back(
                 glm::vec3(
                     lowerLeftCorner.x,
                     heightPos,
                     widthPos),
-                false);
+                pinned);
         }
     }
 
@@ -22,8 +23,8 @@ void Cloth::createMassesAndSprings()
     for (std::uint32_t i = 1; i < heightPoints; ++i) {
         for (std::uint32_t j = 0; j < widthPoints; ++j) {
             springs.emplace_back(
-                pointMasses[(i - 1) * widthPoints + j],
-                pointMasses[i * widthPoints + j],
+                &pointMasses[(i - 1) * widthPoints + j],
+                &pointMasses[i * widthPoints + j],
                 Constraint::STRUCTURAL);
         }
     }
@@ -31,8 +32,8 @@ void Cloth::createMassesAndSprings()
     for (std::uint32_t i = 0; i < heightPoints; ++i) {
         for (std::uint32_t j = 1; j < widthPoints; ++j) {
             springs.emplace_back(
-                pointMasses[i * widthPoints + j - 1],
-                pointMasses[i * widthPoints + j],
+                &pointMasses[i * widthPoints + j - 1],
+                &pointMasses[i * widthPoints + j],
                 Constraint::STRUCTURAL);
         }
     }
@@ -40,8 +41,8 @@ void Cloth::createMassesAndSprings()
     for (std::uint32_t i = 2; i < heightPoints; ++i) {
         for (std::uint32_t j = 0; j < widthPoints; ++j) {
             springs.emplace_back(
-                pointMasses[(i - 2) * widthPoints + j],
-                pointMasses[i * widthPoints + j],
+                &pointMasses[(i - 2) * widthPoints + j],
+                &pointMasses[i * widthPoints + j],
                 Constraint::SHEARING);
         }
     }
@@ -49,8 +50,8 @@ void Cloth::createMassesAndSprings()
     for (std::uint32_t i = 0; i < heightPoints; ++i) {
         for (std::uint32_t j = 2; j < widthPoints; ++j) {
             springs.emplace_back(
-                pointMasses[i * widthPoints + j - 2],
-                pointMasses[i * widthPoints + j],
+                &pointMasses[i * widthPoints + j - 2],
+                &pointMasses[i * widthPoints + j],
                 Constraint::SHEARING);
         }
     }
@@ -58,8 +59,8 @@ void Cloth::createMassesAndSprings()
     for (std::uint32_t i = 1; i < heightPoints; ++i) {
         for (std::uint32_t j = 1; j < widthPoints; ++j) {
             springs.emplace_back(
-                pointMasses[(i - 1) * widthPoints + j - 1],
-                pointMasses[i * widthPoints + j],
+                &pointMasses[(i - 1) * widthPoints + j - 1],
+                &pointMasses[i * widthPoints + j],
                 Constraint::BENDING);
         }
     }
@@ -67,8 +68,8 @@ void Cloth::createMassesAndSprings()
     for (std::uint32_t i = 1; i < heightPoints; ++i) {
         for (std::uint32_t j = 0; j < widthPoints - 1; ++j) {
             springs.emplace_back(
-                pointMasses[(i - 1) * widthPoints + j + 1],
-                pointMasses[i * widthPoints + j],
+                &pointMasses[(i - 1) * widthPoints + j + 1],
+                &pointMasses[i * widthPoints + j],
                 Constraint::BENDING);
         }
     }
@@ -213,7 +214,7 @@ void Cloth::simulate(
         glm::vec3 dir = springs[i].start->currentPosition - springs[i].end->currentPosition;
         float dist = glm::length(dir);
         dir = glm::normalize(dir);
-        float magnitude = ks * (dist - springs[i].restLength);
+        float magnitude = std::abs(ks * (dist - springs[i].restLength));
         if (springs[i].constraint == Constraint::BENDING) {
             magnitude *= 0.2;
         }
@@ -224,7 +225,6 @@ void Cloth::simulate(
     //verlet integration
     for (std::uint32_t i = 0; i < pointMasses.size(); ++i) {
         if (pointMasses[i].pinned) {
-            std::cout << "pinned" << std::endl;
             continue;
         }
         glm::vec3 diff = pointMasses[i].currentPosition - pointMasses[i].previousPosition;
@@ -233,11 +233,27 @@ void Cloth::simulate(
         pointMasses[i].currentPosition += diff + pointMasses[i].forces / mass * dt * dt;
     }
 
-    // std::cout << pointMasses[pointMasses.size() - 1].currentPosition.y << std::endl;
-
-    //constrain position updates (https://www.cs.rpi.edu/~cutler/classes/advancedgraphics/S14/papers/provot_cloth_simulation_96.pdf)
+    // // constrain position updates (https://www.cs.rpi.edu/~cutler/classes/advancedgraphics/S14/papers/provot_cloth_simulation_96.pdf)
     // for (std::uint32_t i = 0; i < springs.size(); ++i) {
     //     glm::vec3 dir = springs[i].start->currentPosition - springs[i].end->currentPosition;
     //     float dist = glm::length(dir);
+    //     dir = glm::normalize(dir);
+    //     float diff = dist - springs[i].restLength;
+    //     if (diff < 0.1 * springs[i].restLength) {
+    //         continue;
+    //     }
+    //     if (springs[i].start->pinned && springs[i].end->pinned) {
+    //         continue;
+    //     }
+    //     if (springs[i].start->pinned) {
+    //         springs[i].end->currentPosition -= diff * dir;
+    //     }
+    //     else if (springs[i].end->pinned) {
+    //         springs[i].start->currentPosition += diff * dir;
+    //     }
+    //     else {
+    //         springs[i].start->currentPosition += diff / 2 * dir;
+    //         springs[i].end->currentPosition -= diff / 2 * dir;
+    //     }
     // }
 }

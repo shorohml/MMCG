@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 
+//TODO: change float to double
 struct Cloth {
 public:
     Cloth(
