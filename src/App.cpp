@@ -118,6 +118,14 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             state->isFlashlightOn = !(state->isFlashlightOn);
         }
         break;
+    case GLFW_KEY_C: //print out camera position
+        if (action != GLFW_PRESS) {
+            break;
+        }
+        std::cout << "Camera postion: ";
+        std::cout << state->camera.Position.x << ' ' << state->camera.Position.y << ' ' << state->camera.Position.z << std::endl;
+        std::cout << "yaw = " << state->camera.Yaw << ", pitch = " << state->camera.Pitch << std::endl;
+        break;
     case GLFW_KEY_1: //shadow map
         if (action == GLFW_PRESS) {
             if (state->renderingMode == RenderingMode::SHADOW_MAP) {
@@ -221,12 +229,6 @@ void App::loadModels()
         scene,
         materials,
         textures);
-    // for (auto& mesh : scene) {
-    //     if (materials[mesh->matId].name == std::string("flagpole")) {
-    //         mesh->isStatic = false; // need to keep flagpoles separate;
-    //     }
-    // }
-    // scene = unifyStaticMeshes(scene, materials);
 
     //separate meshes with and without face culling
     for (std::size_t i = 0; i < scene.size() - 1; ++i) {
@@ -662,8 +664,7 @@ void App::mainLoop()
                 poleRight,
                 150.0f,
                 20,
-                30
-            ));
+                30));
             std::uint32_t idx = cloths.size() - 1;
             //set material
             for (auto& mat : materials) {
@@ -681,11 +682,27 @@ void App::mainLoop()
             twosided.push_back(scene.size() - 1);
         }
     }
-
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
         glm::dvec3(7.0, 0.0, 5.0) //wind force
     };
+    //run simulation a little
+    //TODO: do this in some better way (if possible)
+    for (std::uint32_t i = 0; i < 80; ++i) {
+        for (auto& cloth : cloths) {
+            for (std::uint32_t j = 0; j < 30; ++j) {
+                cloth->simulate(
+                    1.0 / 20.0, //like 20 FPS to speed this up
+                    30,
+                    accelerations);
+            }
+        }
+    }
+    for (auto& cloth : cloths) {
+        cloth->recomputePositionsNormals();
+        cloth->mesh1->GLUpdatePositionsNormals();
+        cloth->mesh2->GLUpdatePositionsNormals();
+    }
 
     //main loop with scene rendering at every frame
     uint32_t frameCount = 0;
@@ -726,7 +743,8 @@ void App::mainLoop()
         accelerations[1].x = 7.0 * sin(currentFrame / 3.0);
         accelerations[1].z = 5.0 * sin(currentFrame);
         //simulate cloth movement
-        for (auto &cloth: cloths) {
+        //TODO: it's possible to parallelize this
+        for (auto& cloth : cloths) {
             for (std::uint32_t i = 0; i < 30; ++i) {
                 cloth->simulate(
                     state.deltaTime * 5,

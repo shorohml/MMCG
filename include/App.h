@@ -35,7 +35,7 @@ public:
     //TODO: move this to config
     AppState()
         : keys(1024, 0)
-        , camera(glm::vec3(0.0f, 150.0f, 0.0f))
+        , camera(glm::vec3(-1057.16f, 578.956f, 91.7585f), glm::vec3(0.0f, 1.0f, 0.0f), -6.68971f, 6.03009f)
     {
     }
 };
