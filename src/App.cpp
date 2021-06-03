@@ -627,6 +627,7 @@ void App::mainLoop()
     glEnable(GL_MULTISAMPLE);
 
     //create cloths (for each flagpole)
+    //TODO: use instancing instead of simulating each flag separatly
     std::vector<std::unique_ptr<Cloth>> cloths;
     for (auto& mesh : scene) {
         if (materials[mesh->matId].name == std::string("flagpole")) {
@@ -660,8 +661,8 @@ void App::mainLoop()
                 poleLeft,
                 poleRight,
                 150.0f,
-                30,
-                45
+                20,
+                30
             ));
             std::uint32_t idx = cloths.size() - 1;
             //set material
