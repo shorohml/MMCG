@@ -626,8 +626,8 @@ void App::mainLoop()
     glfwWindowHint(GLFW_SAMPLES, 4);
     glEnable(GL_MULTISAMPLE);
 
-    glm::dvec3 poleLeft;
-    glm::dvec3 poleRight;
+    //create cloths (for each flagpole)
+    std::vector<std::unique_ptr<Cloth>> cloths;
     for (auto& mesh : scene) {
         if (materials[mesh->matId].name == std::string("flagpole")) {
             auto bbox = mesh->GetAABBOX();
@@ -637,6 +637,8 @@ void App::mainLoop()
             //select left- and right-most vertices
             double minZ = mesh->positions[0].z;
             double maxZ = mesh->positions[0].z;
+            glm::dvec3 poleLeft;
+            glm::dvec3 poleRight;
             for (std::uint32_t i = 0; i < mesh->positions.size(); ++i) {
                 if (mesh->positions[i].z < minZ) {
                     minZ = mesh->positions[i].z;
@@ -647,38 +649,42 @@ void App::mainLoop()
                     poleRight = mesh->positions[i];
                 }
             }
-            break;
+            //adjust length
+            auto dir = poleRight - poleLeft;
+            auto len = glm::length(dir);
+            dir = glm::normalize(dir);
+            poleLeft += len / 5 * dir;
+            poleRight -= len / 5 * dir;
+            //create cloth
+            cloths.push_back(std::make_unique<Cloth>(
+                poleLeft,
+                poleRight,
+                150.0f,
+                30,
+                45
+            ));
+            std::uint32_t idx = cloths.size() - 1;
+            //set material
+            for (auto& mat : materials) {
+                if (mat.second.name == std::string("fabric_a")) {
+                    cloths[idx]->mesh1->matId = mat.first;
+                    cloths[idx]->mesh2->matId = mat.first;
+                }
+            }
+            //load to GPU and add to scene
+            cloths[idx]->mesh1->GLLoad();
+            cloths[idx]->mesh2->GLLoad();
+            scene.push_back(cloths[idx]->mesh1);
+            scene.push_back(cloths[idx]->mesh2);
+            twosided.push_back(scene.size() - 2);
+            twosided.push_back(scene.size() - 1);
         }
     }
-    auto dir = poleRight - poleLeft;
-    auto len = glm::length(dir);
-    dir = glm::normalize(dir);
-    poleLeft += len / 5 * dir;
-    poleRight -= len / 5 * dir;
 
-    //create cloth
-    Cloth cloth(
-        poleLeft,
-        poleRight,
-        150.0f,
-        30,
-        45);
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
         glm::dvec3(7.0, 0.0, 5.0) //wind force
     };
-    for (auto& mat : materials) {
-        if (mat.second.name == std::string("fabric_a")) {
-            cloth.mesh1->matId = mat.first;
-            cloth.mesh2->matId = mat.first;
-        }
-    }
-    cloth.mesh1->GLLoad();
-    cloth.mesh2->GLLoad();
-    scene.push_back(cloth.mesh1);
-    scene.push_back(cloth.mesh2);
-    twosided.push_back(scene.size() - 2);
-    twosided.push_back(scene.size() - 1);
 
     //main loop with scene rendering at every frame
     uint32_t frameCount = 0;
@@ -719,15 +725,17 @@ void App::mainLoop()
         accelerations[1].x = 7.0 * sin(currentFrame / 3.0);
         accelerations[1].z = 5.0 * sin(currentFrame);
         //simulate cloth movement
-        for (std::uint32_t i = 0; i < 30; ++i) {
-            cloth.simulate(
-                state.deltaTime * 5,
-                30,
-                accelerations);
+        for (auto &cloth: cloths) {
+            for (std::uint32_t i = 0; i < 30; ++i) {
+                cloth->simulate(
+                    state.deltaTime * 5,
+                    30,
+                    accelerations);
+            }
+            cloth->recomputePositionsNormals();
+            cloth->mesh1->GLUpdatePositionsNormals();
+            cloth->mesh2->GLUpdatePositionsNormals();
         }
-        cloth.recomputePositionsNormals();
-        cloth.mesh1->GLUpdatePositionsNormals();
-        cloth.mesh2->GLUpdatePositionsNormals();
 
         //render shadow map to shadowMapTexture
         renderShadowMap(depthProgram);
