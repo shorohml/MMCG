@@ -221,7 +221,12 @@ void App::loadModels()
         scene,
         materials,
         textures);
-    scene = unifyStaticMeshes(scene, materials);
+    // for (auto& mesh : scene) {
+    //     if (materials[mesh->matId].name == std::string("flagpole")) {
+    //         mesh->isStatic = false; // need to keep flagpoles separate;
+    //     }
+    // }
+    // scene = unifyStaticMeshes(scene, materials);
 
     //separate meshes with and without face culling
     for (std::size_t i = 0; i < scene.size() - 1; ++i) {
@@ -624,21 +629,41 @@ void App::mainLoop()
     //create cloth
     Cloth cloth(
         glm::vec3(-100.0f, 250.0f, -250.0f),
-        150.0f,
+        100.0f,
         150.0f,
         30,
-        30);
+        45);
+    std::vector<glm::dvec3> accelerations = {
+        glm::dvec3(0.0, -9.8, 0.0),
+        glm::dvec3(3.0, 0.0, 0.5) //wind force
+    };
+    for (auto& mat : materials) {
+        if (mat.second.name == std::string("fabric_a")) {
+            cloth.mesh->matId = mat.first;
+        }
+    }
     cloth.mesh->GLLoad();
     scene.push_back(cloth.mesh);
     twosided.push_back(scene.size() - 1);
-    std::vector<glm::dvec3> accelerations = {
-        glm::dvec3(0.0, -9.8, 0.0)
-    };
+
+    int count = 0;
+    for (auto& mesh : scene) {
+        if (materials[mesh->matId].name == std::string("flagpole")) {
+            auto bbox = mesh->GetAABBOX();
+            if (bbox.max.z - bbox.min.z < 190.0f) {
+                continue;
+            }
+            std::cout << "flagpole " << count++ << std::endl;
+            std::cout << bbox.min.x << ' ' << bbox.min.y << ' ' << bbox.min.z << std::endl;
+            std::cout << bbox.max.x << ' ' << bbox.max.y << ' ' << bbox.max.z << std::endl;
+        }
+    }
 
     //main loop with scene rendering at every frame
     uint32_t frameCount = 0;
     float deltaSum = 0.0f;
     bool firstFrame = true;
+    //TODO: move FPS logic to separate class
     while (!glfwWindowShouldClose(window)) {
         //per-frame time logic
         float currentFrame = glfwGetTime();
@@ -668,6 +693,9 @@ void App::mainLoop()
         //handle events
         glfwPollEvents();
         doCameraMovement();
+
+        //recompute wind force
+        accelerations[1].x = 3.0 * sin(currentFrame);
 
         //simulate cloth movement
         for (std::uint32_t i = 0; i < 30; ++i) {
@@ -707,7 +735,6 @@ void App::mainLoop()
     depthProgram.Release();
     quadColorProgram.Release();
     quadDepthProgram.Release();
-    cloth.mesh->Release();
 }
 
 void App::release()

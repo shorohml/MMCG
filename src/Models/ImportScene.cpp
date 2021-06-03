@@ -227,8 +227,7 @@ void importSceneFromFile(
         maxMatId);
 }
 
-//All dinamic meshes will be moved from old scene!
-//For now assume all static meshes have tangents and bitangents
+//Assume all static meshes have tangents and bitangents
 std::vector<std::shared_ptr<Mesh>> unifyStaticMeshes(
     std::vector<std::shared_ptr<Mesh>>& scene,
     const std::unordered_map<uint32_t, Material>& materials)
@@ -251,6 +250,7 @@ std::vector<std::shared_ptr<Mesh>> unifyStaticMeshes(
         materialToMeshIdx[scene[i]->matId].push_back(i);
     }
 
+    //unify meshes in each group
     std::vector<std::shared_ptr<Mesh>> newScene;
     for (const auto& item : materialToMeshIdx) {
         if (item.second.size() == 0) {
@@ -288,7 +288,7 @@ std::vector<std::shared_ptr<Mesh>> unifyStaticMeshes(
             positions, normals, texCoords, indices, tangents, bitangents, item.first, glm::mat4(1.0f)));
     }
     for (std::size_t i : skipped) {
-        newScene.push_back(std::move(scene[i]));
+        newScene.push_back(scene[i]);
     }
     return newScene;
 }

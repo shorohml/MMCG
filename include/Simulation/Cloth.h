@@ -38,7 +38,7 @@ private:
     std::vector<glm::ivec3> triangles;
 
     //TODO: initialize this from config
-    double dumping = 0.2;
-    double density = 0.015;
-    double ks = 5000.0;
+    double dumping = 0.2; // %, to simulate loss of energy due to friction etc
+    double density = 0.015; // kg/cm2
+    double ks = 500.0; // H/cm
 };
