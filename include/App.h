@@ -32,9 +32,10 @@ public:
     RenderingMode renderingMode = RenderingMode::DEFAULT;
     Camera camera; //camera
 
+    //TODO: move this to config
     AppState()
         : keys(1024, 0)
-        , camera(glm::vec3(-125.0f, 150.0f, 0.0f))
+        , camera(glm::vec3(0.0f, 150.0f, 0.0f))
     {
     }
 };

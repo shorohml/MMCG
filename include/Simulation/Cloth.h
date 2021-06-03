@@ -37,7 +37,8 @@ private:
     std::vector<Spring> springs;
     std::vector<glm::ivec3> triangles;
 
+    //TODO: initialize this from config
     double dumping = 0.2;
-    double density = 150.0;
+    double density = 0.015;
     double ks = 5000.0;
 };

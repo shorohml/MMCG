@@ -623,7 +623,7 @@ void App::mainLoop()
 
     //create cloth
     Cloth cloth(
-        glm::vec3(-200.0f, 150.0f, -250.0f),
+        glm::vec3(-100.0f, 250.0f, -250.0f),
         150.0f,
         150.0f,
         30,
@@ -672,7 +672,7 @@ void App::mainLoop()
         //simulate cloth movement
         for (std::uint32_t i = 0; i < 30; ++i) {
             cloth.simulate(
-                state.deltaTime,
+                state.deltaTime * 10,
                 30,
                 accelerations);
         }

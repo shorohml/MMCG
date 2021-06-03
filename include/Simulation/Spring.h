@@ -12,7 +12,6 @@ enum Constraint {
 
 struct Spring {
 public:
-    //TODO: change to indexes (or to smart pointers)
     Spring(PointMass* start_, PointMass* end_, const Constraint constraint_)
         : constraint(constraint_)
     {
