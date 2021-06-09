@@ -795,9 +795,9 @@ void App::mainLoop()
         //simulate cloth movement
         //TODO: it's possible to parallelize this
         for (auto& cloth : cloths) {
-            for (std::uint32_t i = 0; i < 30; ++i) {
+            for (std::uint32_t i = 0; i < 60; ++i) {
                 cloth->simulate(
-                    state.deltaTime * 5.0,
+                    state.deltaTime * 2.5,
                     30,
                     accelerations);
             }
