@@ -704,7 +704,7 @@ void App::mainLoop()
     cloths.push_back(createCloth(scene[poles[0][0]]));
     cloths.push_back(createCloth(scene[poles[1][0]]));
     std::vector<std::vector<glm::mat4>> modelMats(2);
-    //create models matrices for left anr right poles
+    //create models matrices for left and right poles
     for (std::uint32_t i = 0; i < 2; ++i) {
         for (std::uint32_t j : poles[i]) {
             modelMats[i].push_back(createModelMat(
@@ -731,28 +731,10 @@ void App::mainLoop()
         duplicatedModels[scene.size() - 2] = modelMats[i];
         duplicatedModels[scene.size() - 1] = modelMats[i];
     }
-
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
         glm::dvec3(14.0, 0.0, 5.0) //wind force
     };
-    //run simulation a little
-    //TODO: do this in some better way (if possible)
-    for (std::uint32_t i = 0; i < 80; ++i) {
-        for (auto& cloth : cloths) {
-            for (std::uint32_t j = 0; j < 30; ++j) {
-                cloth->simulate(
-                    1.0 / 60.0,
-                    30,
-                    accelerations);
-            }
-        }
-    }
-    for (auto& cloth : cloths) {
-        cloth->recomputePositionsNormals();
-        cloth->mesh1->GLUpdatePositionsNormals();
-        cloth->mesh2->GLUpdatePositionsNormals();
-    }
 
     //main loop with scene rendering at every frame
     uint32_t frameCount = 0;
@@ -795,9 +777,10 @@ void App::mainLoop()
         //simulate cloth movement
         //TODO: it's possible to parallelize this
         for (auto& cloth : cloths) {
-            for (std::uint32_t i = 0; i < 90; ++i) {
+            double frac = state.deltaTime * 30;
+            for (std::uint32_t i = 0; i < 90 * frac; ++i) {
                 cloth->simulate(
-                    state.deltaTime,
+                    1.0 / 30.0,
                     30,
                     accelerations);
             }
