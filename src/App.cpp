@@ -790,15 +790,15 @@ void App::mainLoop()
         doCameraMovement();
 
         //recompute wind force
-        accelerations[1].x = 7.0 * sin(currentFrame / 3.0);
-        accelerations[1].z = 5.0 * sin(currentFrame);
+        accelerations[1].x = 14.0 * sin(currentFrame / 3.0);
+        accelerations[1].z = 5.0 * sin(currentFrame / 6.0);
         //simulate cloth movement
         //TODO: it's possible to parallelize this
         for (auto& cloth : cloths) {
             for (std::uint32_t i = 0; i < 90; ++i) {
                 cloth->simulate(
                     state.deltaTime,
-                    15,
+                    30,
                     accelerations);
             }
             cloth->recomputePositionsNormals();
