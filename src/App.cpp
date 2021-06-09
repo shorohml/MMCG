@@ -734,7 +734,7 @@ void App::mainLoop()
 
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
-        glm::dvec3(7.0, 0.0, 5.0) //wind force
+        glm::dvec3(14.0, 0.0, 5.0) //wind force
     };
     //run simulation a little
     //TODO: do this in some better way (if possible)
