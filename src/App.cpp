@@ -734,7 +734,7 @@ void App::mainLoop()
 
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
-        glm::dvec3(7.0, 0.0, 5.0) //wind force
+        glm::dvec3(14.0, 0.0, 10.0) //wind force
     };
     //run simulation a little
     //TODO: do this in some better way (if possible)
@@ -742,7 +742,7 @@ void App::mainLoop()
         for (auto& cloth : cloths) {
             for (std::uint32_t j = 0; j < 30; ++j) {
                 cloth->simulate(
-                    1.0 / 20.0, //like 20 FPS to speed this up
+                    1.0 / 30.0, //like 30 FPS to speed this up
                     30,
                     accelerations);
             }
@@ -790,14 +790,14 @@ void App::mainLoop()
         doCameraMovement();
 
         //recompute wind force
-        accelerations[1].x = 7.0 * sin(currentFrame / 3.0);
-        accelerations[1].z = 5.0 * sin(currentFrame);
+        accelerations[1].x = 14.0 * sin(currentFrame / 3.0);
+        accelerations[1].z = 10.0 * sin(currentFrame);
         //simulate cloth movement
         //TODO: it's possible to parallelize this
         for (auto& cloth : cloths) {
-            for (std::uint32_t i = 0; i < 60; ++i) {
+            for (std::uint32_t i = 0; i < 30; ++i) {
                 cloth->simulate(
-                    state.deltaTime * 2.5,
+                    state.deltaTime,
                     30,
                     accelerations);
             }
