@@ -7,9 +7,9 @@ void Cloth::createMassesAndSprings()
     double leftHeight = height;
     double rightHeight = height;
     if (upperLeftCorner.y > upperRightCorner.y) {
-        leftHeight += upperLeftCorner.y - upperRightCorner.y;        
+        leftHeight += upperLeftCorner.y - upperRightCorner.y;
     } else {
-        rightHeight += upperRightCorner.y - upperLeftCorner.y;        
+        rightHeight += upperRightCorner.y - upperLeftCorner.y;
     }
     glm::dvec3 left = upperLeftCorner;
     glm::dvec3 right = upperRightCorner;
@@ -99,7 +99,7 @@ std::shared_ptr<Mesh> Cloth::createMesh(glm::dvec3 offset, bool side)
     }
 
     //indices
-    std::vector<glm::ivec3> &triangles = side ? triangles1 : triangles2;
+    std::vector<glm::ivec3>& triangles = side ? triangles1 : triangles2;
     std::uint32_t numIndices = 6 * (heightPoints - 1) * (widthPoints - 1);
     std::vector<std::uint32_t> indices;
     indices.reserve(numIndices);
@@ -185,7 +185,7 @@ Cloth::Cloth(
 void Cloth::recomputePositionsNormals(glm::dvec3 offset, bool side)
 {
     std::shared_ptr<Mesh> mesh = side ? mesh1 : mesh2;
-    std::vector<glm::ivec3> &triangles = side ? triangles1 : triangles2;
+    std::vector<glm::ivec3>& triangles = side ? triangles1 : triangles2;
 
     //set positions from point masses
     for (std::uint32_t i = 0; i < pointMasses.size(); ++i) {

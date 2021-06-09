@@ -4,7 +4,7 @@
 #include "Simulation/Cloth.h"
 #include <map>
 
-App::App(const std::string& pathToConfig)
+App::App(const std::string& pathToConfig) : sideSplit(2)
 {
     std::ifstream input(pathToConfig);
     input >> config;
@@ -38,7 +38,7 @@ App::App(const std::string& pathToConfig)
 
 int App::initGL() const
 {
-    //грузим функции opengl через glad
+    //load opengl functions using GLAD
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
         std::cout << "Failed to initialize OpenGL context" << std::endl;
         return -1;
@@ -58,7 +58,7 @@ int App::createWindow()
         return -1;
     }
 
-    //запрашиваем контекст opengl версии 3.3
+    //request opengl context
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -239,9 +239,9 @@ void App::loadModels()
     for (std::size_t i = 0; i < scene.size() - 1; ++i) {
         uint32_t matId = scene[i]->matId;
         if (materials[matId].twosided) {
-            twosided.push_back(i);
+            sideSplit[0].push_back(i);
         } else {
-            notTwosided.push_back(i);
+            sideSplit[1].push_back(i);
         }
     }
 
@@ -361,6 +361,7 @@ void App::deleteShadowMapBuffer()
     GL_CHECK_ERRORS;
 }
 
+//TODO: Move this to Mesh.cpp
 void App::setupQuad()
 {
     float quadData[16] = {
@@ -429,10 +430,17 @@ void App::renderShadowMap(ShaderProgram& depthProgram)
 
     depthProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
     for (std::size_t i = 0; i < scene.size(); ++i) {
-        depthProgram.SetUniform("model", scene[i]->model);
-        scene[i]->Draw();
+        if (duplicatedModels.count(i)) {
+            //TODO: use instancing here
+            for (auto &model: duplicatedModels[i]) {
+                depthProgram.SetUniform("model", model);
+                scene[i]->Draw();
+            }
+        } else {
+            depthProgram.SetUniform("model", scene[i]->model);
+            scene[i]->Draw();
+        }
     }
-
     glUseProgram(0); //StoptUseShader
 }
 
@@ -514,47 +522,43 @@ void App::renderScene(ShaderProgram& lightningProgram)
     glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
     lightningProgram.SetUniform("shadowMap", 3);
 
-    //opaque objects
-    glEnable(GL_CULL_FACE);
-    for (std::size_t i : notTwosided) {
-        //set material
-        uint32_t matId = scene[i]->matId;
-        materials[matId].Setup(
-            lightningProgram,
-            textures,
-            GL_TEXTURE0,
-            GL_TEXTURE1,
-            GL_TEXTURE2,
-            0,
-            1,
-            2);
-        //set uniforms with transforms
-        glm::mat3 normalMatrix = glm::transpose(glm::inverse(view * scene[i]->model));
-        lightningProgram.SetUniform("model", scene[i]->model);
-        lightningProgram.SetUniform("normalMatrix", normalMatrix);
-        scene[i]->Draw();
+    for (std::size_t i = 0; i < 2; ++i) {
+        if (i == 0) {
+            //transparent objects
+            glDisable(GL_CULL_FACE);
+        } else {
+            //opaque objects
+            glEnable(GL_CULL_FACE);
+        }
+        for (std::size_t j : sideSplit[i]) {
+            //set material
+            uint32_t matId = scene[j]->matId;
+            materials[matId].Setup(
+                lightningProgram,
+                textures,
+                GL_TEXTURE0,
+                GL_TEXTURE1,
+                GL_TEXTURE2,
+                0,
+                1,
+                2);
+            if (duplicatedModels.count(j)) {
+                for (auto &model: duplicatedModels[j]) {
+                    //TODO: use instancing here
+                    glm::mat3 normalMatrix = glm::transpose(glm::inverse(view * model));
+                    lightningProgram.SetUniform("model", model);
+                    lightningProgram.SetUniform("normalMatrix", normalMatrix);
+                    scene[j]->Draw();
+                }
+            } else {
+                glm::mat3 normalMatrix = glm::transpose(glm::inverse(view * scene[j]->model));
+                lightningProgram.SetUniform("model", scene[j]->model);
+                lightningProgram.SetUniform("normalMatrix", normalMatrix);
+                scene[j]->Draw();
+            }
+        }
     }
 
-    //transparent objects
-    glDisable(GL_CULL_FACE);
-    for (std::size_t i : twosided) {
-        //set material
-        uint32_t matId = scene[i]->matId;
-        materials[matId].Setup(
-            lightningProgram,
-            textures,
-            GL_TEXTURE0,
-            GL_TEXTURE1,
-            GL_TEXTURE2,
-            0,
-            1,
-            2);
-        //set uniforms with transforms
-        glm::mat3 normalMatrix = glm::transpose(glm::inverse(view * scene[i]->model));
-        lightningProgram.SetUniform("model", scene[i]->model);
-        lightningProgram.SetUniform("normalMatrix", normalMatrix);
-        scene[i]->Draw();
-    }
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0); //StoptUseShader
 }
@@ -586,6 +590,56 @@ void App::visualizeScene(ShaderProgram& quadColorProgram)
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0); //StopUseShader
+}
+
+namespace {
+std::pair<glm::dvec3, glm::dvec3> findCorners(std::shared_ptr<Mesh>& mesh)
+{
+    //select left- and right-most vertices
+    double minZ = mesh->positions[0].z;
+    double maxZ = mesh->positions[0].z;
+    glm::dvec3 poleLeft = mesh->positions[0];
+    glm::dvec3 poleRight = mesh->positions[0];
+    for (std::uint32_t i = 0; i < mesh->positions.size(); ++i) {
+        if (mesh->positions[i].z < minZ) {
+            minZ = mesh->positions[i].z;
+            poleLeft = mesh->positions[i];
+        }
+        if (mesh->positions[i].z > maxZ) {
+            maxZ = mesh->positions[i].z;
+            poleRight = mesh->positions[i];
+        }
+    }
+    //adjust length
+    auto dir = poleRight - poleLeft;
+    auto len = glm::length(dir);
+    dir = glm::normalize(dir);
+    poleLeft += len / 5 * dir;
+    poleRight -= len / 5 * dir;
+    return std::make_pair(poleLeft, poleRight);
+}
+
+std::unique_ptr<Cloth> createCloth(std::shared_ptr<Mesh>& mesh)
+{
+    auto corners = findCorners(mesh);
+    return std::make_unique<Cloth>(
+        corners.first,
+        corners.second,
+        150.0f,
+        20,
+        30);
+}
+
+glm::mat4 createModelMat(glm::dvec3& orig, std::shared_ptr<Mesh>& mesh)
+{
+    auto corners = findCorners(mesh);
+    glm::mat4 res(1.0f);
+    glm::vec3 diff = corners.first - orig;
+    res[3][0] = diff[0];
+    res[3][1] = diff[1];
+    res[3][2] = diff[2];
+    return res;
+}
 }
 
 void App::mainLoop()
@@ -629,64 +683,55 @@ void App::mainLoop()
     setupShadowMapBuffer();
     setupQuad();
 
-    //enable anti-aliasing
-    glfwWindowHint(GLFW_SAMPLES, 4);
-    glEnable(GL_MULTISAMPLE);
-
-    //create cloths (for each flagpole)
-    //TODO: use instancing instead of simulating each flag separatly
-    std::vector<std::unique_ptr<Cloth>> cloths;
-    for (auto& mesh : scene) {
-        if (materials[mesh->matId].name == std::string("flagpole")) {
-            auto bbox = mesh->GetAABBOX();
+    //find flagpoles
+    std::vector<std::vector<uint32_t>> poles(2);
+    for (std::uint32_t i = 0; i < scene.size(); ++i) {
+        if (materials[scene[i]->matId].name == std::string("flagpole")) {
+            auto bbox = scene[i]->GetAABBOX();
             if (bbox.max.z - bbox.min.z < 190.0f) {
                 continue;
             }
-            //select left- and right-most vertices
-            double minZ = mesh->positions[0].z;
-            double maxZ = mesh->positions[0].z;
-            glm::dvec3 poleLeft;
-            glm::dvec3 poleRight;
-            for (std::uint32_t i = 0; i < mesh->positions.size(); ++i) {
-                if (mesh->positions[i].z < minZ) {
-                    minZ = mesh->positions[i].z;
-                    poleLeft = mesh->positions[i];
-                }
-                if (mesh->positions[i].z > maxZ) {
-                    maxZ = mesh->positions[i].z;
-                    poleRight = mesh->positions[i];
-                }
+            if (bbox.min.z <= -100.0f) {
+                poles[0].push_back(i);
+            } else {
+                poles[1].push_back(i);
             }
-            //adjust length
-            auto dir = poleRight - poleLeft;
-            auto len = glm::length(dir);
-            dir = glm::normalize(dir);
-            poleLeft += len / 5 * dir;
-            poleRight -= len / 5 * dir;
-            //create cloth
-            cloths.push_back(std::make_unique<Cloth>(
-                poleLeft,
-                poleRight,
-                150.0f,
-                20,
-                30));
-            std::uint32_t idx = cloths.size() - 1;
-            //set material
-            for (auto& mat : materials) {
-                if (mat.second.name == std::string("fabric_a")) {
-                    cloths[idx]->mesh1->matId = mat.first;
-                    cloths[idx]->mesh2->matId = mat.first;
-                }
-            }
-            //load to GPU and add to scene
-            cloths[idx]->mesh1->GLLoad();
-            cloths[idx]->mesh2->GLLoad();
-            scene.push_back(cloths[idx]->mesh1);
-            scene.push_back(cloths[idx]->mesh2);
-            twosided.push_back(scene.size() - 2);
-            twosided.push_back(scene.size() - 1);
         }
     }
+
+    //create cloths (one for left and one for right)
+    std::vector<std::unique_ptr<Cloth>> cloths;
+    cloths.push_back(createCloth(scene[poles[0][0]]));
+    cloths.push_back(createCloth(scene[poles[1][0]]));
+    std::vector<std::vector<glm::mat4>> modelMats(2);
+    //create models matrices for left anr right poles
+    for (std::uint32_t i = 0; i < 2; ++i) {
+        for (std::uint32_t j : poles[i]) {
+            modelMats[i].push_back(createModelMat(
+                cloths[i]->upperLeftCorner,
+                scene[j]
+            ));
+        }
+    }
+    for (std::uint32_t i = 0; i < cloths.size(); ++i) {
+        //set material
+        for (auto& mat : materials) {
+            if (mat.second.name == std::string("fabric_flag")) {
+                cloths[i]->mesh1->matId = mat.first;
+                cloths[i]->mesh2->matId = mat.first;
+            }
+        }
+        //load to GPU and add to scene
+        cloths[i]->mesh1->GLLoad();
+        cloths[i]->mesh2->GLLoad();
+        scene.push_back(cloths[i]->mesh1);
+        scene.push_back(cloths[i]->mesh2);
+        sideSplit[0].push_back(scene.size() - 2);
+        sideSplit[0].push_back(scene.size() - 1);
+        duplicatedModels[scene.size() - 2] = modelMats[i];
+        duplicatedModels[scene.size() - 1] = modelMats[i];
+    }
+
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
         glm::dvec3(7.0, 0.0, 5.0) //wind force
@@ -752,7 +797,7 @@ void App::mainLoop()
         for (auto& cloth : cloths) {
             for (std::uint32_t i = 0; i < 30; ++i) {
                 cloth->simulate(
-                    state.deltaTime * 5,
+                    state.deltaTime * 5.0,
                     30,
                     accelerations);
             }

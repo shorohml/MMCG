@@ -28,9 +28,10 @@ public:
     void recomputePositionsNormals(glm::dvec3 offset, bool side);
     void recomputePositionsNormals();
 
-private:
     glm::dvec3 upperLeftCorner;
     glm::dvec3 upperRightCorner;
+
+private:
     double width;
     double height;
     std::uint32_t widthPoints;
