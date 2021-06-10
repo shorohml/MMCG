@@ -525,7 +525,7 @@ void App::visualizeShadowMap(ShaderProgram& quadDepthProgram)
     glBindTexture(GL_TEXTURE_2D, shadowMapTextures[2]);
     quadDepthProgram.SetUniform("shadowMap", 0);
 
-    quadDepthProgram.SetUniform("filter", false);
+    quadDepthProgram.SetUniform("gaussFilter", false);
     quadDepthProgram.SetUniform("direction", true);
 
     glBindVertexArray(quadVAO);

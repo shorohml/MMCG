@@ -87,8 +87,8 @@ private:
     GLuint shadowMapFBO;
     GLuint shadowMapRBO;
     std::vector<GLuint> shadowMapTextures;
-    const uint32_t shadowMapWidth = 2048;
-    const uint32_t shadowMapHeight = 2048;
+    const uint32_t shadowMapWidth = 4096;
+    const uint32_t shadowMapHeight = 4096;
     glm::vec3 dir;
     glm::mat4 lightSpaceMatrix;
     void setupShadowMapBuffer();

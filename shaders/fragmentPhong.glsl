@@ -126,8 +126,10 @@ float calcDirShadowVSM(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 {
     //transform to [0, 1]
     vec3 projCoords = fragPosLightSpace.xyz * 0.5 + 0.5;
+    //compute moments
     vec2 moments = texture(shadowMap, vec2(projCoords.xy)).rg;
     float sigma2 = moments.g - moments.r * moments.r;
+    //compute proba
     float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.001);
     float diff = projCoords.z - bias - moments.r;
     float pmax = sigma2 / (sigma2 + diff * diff);
