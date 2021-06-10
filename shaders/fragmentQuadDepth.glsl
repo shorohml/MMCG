@@ -16,7 +16,7 @@ uniform float weight[3] = float[](0.2270270270, 0.3162162162, 0.0702702703);
 
 void main()
 {
-    vec2 depth = texture2D(shadowMap, fsIn.texCoords).rg;
+    vec2 depth = texture(shadowMap, fsIn.texCoords).rg;
     if (gaussFilter) {
         depth *= weight[0];
         vec2 size = textureSize(shadowMap, 0);
@@ -30,8 +30,8 @@ void main()
                 coord1 += vec2(offset[i], 0.0) / size.x;
                 coord2 -= vec2(offset[i], 0.0) / size.x;
             }
-            depth += texture2D(shadowMap, coord1).rg * weight[i];
-            depth += texture2D(shadowMap, coord2).rg * weight[i]; 
+            depth += texture(shadowMap, coord1).rg * weight[i];
+            depth += texture(shadowMap, coord2).rg * weight[i]; 
         }
     }
     FragColor = vec4(depth.rg, 0.0, 1.0);
