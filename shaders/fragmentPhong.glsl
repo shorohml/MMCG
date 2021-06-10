@@ -96,13 +96,19 @@ float calcDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 {
     //transform to [0, 1]
     vec3 projCoords = fragPosLightSpace.xyz * 0.5 + 0.5;
-    if (projCoords.z > 1.0) {
-        return 0.0;
-    }
+    float pcfDepth = texture(shadowMap, vec2(projCoords.xy)).r;
+    //bias to remove shadow achne
+    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.005);
+    return projCoords.z - bias < pcfDepth ? 1.0 : 0.0;
+}
+
+float calcDirShadowPCF(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+{
+    //transform to [0, 1]
+    vec3 projCoords = fragPosLightSpace.xyz * 0.5 + 0.5;
     vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
     //bias to remove shadow achne
     float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.005);
-    //find depth of current fragment
     float currentDepth = projCoords.z;
     float shadow = 0.0;
     //simple PCF
@@ -110,10 +116,22 @@ float calcDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
         for (int j = -2; j < 3; ++j) {
             vec2 coord = vec2(projCoords.xy + vec2(i, j) * texelSize);
             float pcfDepth = texture(shadowMap, coord).r;
-            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+            shadow += currentDepth - bias < pcfDepth ? 1.0 : 0.0;
         }
     }
     return shadow / 25.0;
+}
+
+float calcDirShadowVSM(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+{
+    //transform to [0, 1]
+    vec3 projCoords = fragPosLightSpace.xyz * 0.5 + 0.5;
+    vec2 moments = texture(shadowMap, vec2(projCoords.xy)).rg;
+    float sigma2 = moments.g - moments.r * moments.r;
+    float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.001);
+    float diff = projCoords.z - bias - moments.r;
+    float pmax = sigma2 / (sigma2 + diff * diff);
+    return projCoords.z - bias < moments.r ? 1.0 : pmax;
 }
 
 vec3 calcDirLight(
@@ -137,9 +155,9 @@ vec3 calcDirLight(
     //specular
     vec3 specular = light.specular * calcSpecular(lightDir, norm, viewDir, specularMapVal * material.specular, material);
 
-    float shadow = calcDirShadow(fragPosLightSpace, norm, lightDir);
+    float shadow = calcDirShadowVSM(fragPosLightSpace, norm, lightDir);
 
-    return ambient + (1 - shadow) * (diffuse + specular);
+    return ambient + shadow * (diffuse + specular);
 }
 
 float calcAttenuation(

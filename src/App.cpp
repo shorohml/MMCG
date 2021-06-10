@@ -299,8 +299,6 @@ void App::setupColorBuffer()
     GL_CHECK_ERRORS;
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, config["width"], config["height"]);
     GL_CHECK_ERRORS;
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    GL_CHECK_ERRORS;
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, colorBufferRBO);
     GL_CHECK_ERRORS;
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -309,6 +307,8 @@ void App::setupColorBuffer()
 
     //bind default framebuffer
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_CHECK_ERRORS;
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
     GL_CHECK_ERRORS;
 }
 
@@ -329,26 +329,34 @@ void App::setupShadowMapBuffer()
     glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
     GL_CHECK_ERRORS;
 
-    //generate texture for depth map and attach it to framebuffer
-    glGenTextures(1, &shadowMapTexture);
+    //generate textures for depth map (we need multiple for filtering) and attach it to framebuffer
+    shadowMapTextures = std::vector<GLuint>(3);
+    for (std::uint32_t i = 0; i < 3; ++i) {
+        glGenTextures(1, &shadowMapTextures[i]);
+        GL_CHECK_ERRORS;
+        glBindTexture(GL_TEXTURE_2D, shadowMapTextures[i]);
+        GL_CHECK_ERRORS;
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, shadowMapWidth, shadowMapHeight, 0, GL_RG, GL_FLOAT, nullptr);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        GL_CHECK_ERRORS;
+    }
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapTextures[0], 0);
     GL_CHECK_ERRORS;
-    glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+
+    glGenRenderbuffers(1, &shadowMapRBO);
     GL_CHECK_ERRORS;
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowMapWidth, shadowMapHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, nullptr);
+    glBindRenderbuffer(GL_RENDERBUFFER, shadowMapRBO);
     GL_CHECK_ERRORS;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, shadowMapWidth, shadowMapHeight);
     GL_CHECK_ERRORS;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-    GL_CHECK_ERRORS;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    GL_CHECK_ERRORS;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    GL_CHECK_ERRORS;
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMapTexture, 0);
-    GL_CHECK_ERRORS;
-    glDrawBuffer(GL_NONE);
-    GL_CHECK_ERRORS;
-    glReadBuffer(GL_NONE);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, shadowMapRBO);
     GL_CHECK_ERRORS;
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
@@ -357,11 +365,15 @@ void App::setupShadowMapBuffer()
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     GL_CHECK_ERRORS;
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    GL_CHECK_ERRORS;
 }
 
 void App::deleteShadowMapBuffer()
 {
-    glDeleteTextures(1, &shadowMapTexture);
+    for (std::uint32_t i = 0; i < shadowMapTextures.size(); ++i) {
+        glDeleteTextures(1, &shadowMapTextures[i]);
+    }
     GL_CHECK_ERRORS;
     glDeleteFramebuffers(1, &shadowMapFBO);
     GL_CHECK_ERRORS;
@@ -422,9 +434,12 @@ void App::deleteQuad()
     glDeleteBuffers(1, &quadEBO);
 }
 
-void App::renderShadowMap(ShaderProgram& depthProgram)
+void App::renderShadowMap(ShaderProgram& depthProgram, ShaderProgram& quadDepthProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapTextures[0], 0);
+    GL_CHECK_ERRORS;
 
     //enabling depth testing
     glEnable(GL_DEPTH_TEST);
@@ -447,6 +462,49 @@ void App::renderShadowMap(ShaderProgram& depthProgram)
             scene[i]->Draw();
         }
     }
+
+    //smooth using gaussian filter
+    glUseProgram(quadDepthProgram.ProgramObj); //StartUseShader
+
+    //x-direction
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapTextures[1], 0);
+    GL_CHECK_ERRORS;
+
+    glDisable(GL_DEPTH_TEST);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTextures[0]);
+    quadDepthProgram.SetUniform("shadowMap", 0);
+    quadDepthProgram.SetUniform("filter", true);
+    quadDepthProgram.SetUniform("direction", true);
+
+    glBindVertexArray(quadVAO);
+    GL_CHECK_ERRORS;
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    GL_CHECK_ERRORS;
+    glBindVertexArray(0);
+    GL_CHECK_ERRORS;
+
+    //y-direction
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapTextures[2], 0);
+    GL_CHECK_ERRORS;
+
+    glDisable(GL_DEPTH_TEST);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTextures[1]);
+    quadDepthProgram.SetUniform("shadowMap", 0);
+    quadDepthProgram.SetUniform("filter", true);
+    quadDepthProgram.SetUniform("direction", false);
+
+    glBindVertexArray(quadVAO);
+    GL_CHECK_ERRORS;
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    GL_CHECK_ERRORS;
+    glBindVertexArray(0);
+    GL_CHECK_ERRORS;
+
+    glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0); //StoptUseShader
 }
 
@@ -464,8 +522,11 @@ void App::visualizeShadowMap(ShaderProgram& quadDepthProgram)
 
     //set color bufer texture
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTextures[2]);
     quadDepthProgram.SetUniform("shadowMap", 0);
+
+    quadDepthProgram.SetUniform("filter", false);
+    quadDepthProgram.SetUniform("direction", true);
 
     glBindVertexArray(quadVAO);
     GL_CHECK_ERRORS;
@@ -553,7 +614,7 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
     lightningProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
 
     glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, shadowMapTexture);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTextures[2]);
     lightningProgram.SetUniform("shadowMap", 3);
 
     for (std::size_t i = 0; i < 2; ++i) {
@@ -847,7 +908,7 @@ void App::mainLoop()
         }
 
         //render shadow map to shadowMapTexture
-        renderShadowMap(depthProgram);
+        renderShadowMap(depthProgram, quadDepthProgram);
 
         // visualize shadow map
         if (state.renderingMode == RenderingMode::SHADOW_MAP) {
