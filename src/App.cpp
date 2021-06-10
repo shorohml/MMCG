@@ -475,7 +475,7 @@ void App::renderShadowMap(ShaderProgram& depthProgram, ShaderProgram& quadDepthP
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadowMapTextures[0]);
     quadDepthProgram.SetUniform("shadowMap", 0);
-    quadDepthProgram.SetUniform("filter", true);
+    quadDepthProgram.SetUniform("gaussFilter", true);
     quadDepthProgram.SetUniform("direction", true);
 
     glBindVertexArray(quadVAO);
@@ -494,7 +494,7 @@ void App::renderShadowMap(ShaderProgram& depthProgram, ShaderProgram& quadDepthP
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, shadowMapTextures[1]);
     quadDepthProgram.SetUniform("shadowMap", 0);
-    quadDepthProgram.SetUniform("filter", true);
+    quadDepthProgram.SetUniform("gaussFilter", true);
     quadDepthProgram.SetUniform("direction", false);
 
     glBindVertexArray(quadVAO);
