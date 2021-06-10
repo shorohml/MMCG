@@ -65,6 +65,7 @@ private:
     //have to use shared_ptr for cloth simulation to work
     //(need a pointer to the same Mesh here and in Cloth)
     std::vector<std::shared_ptr<Mesh>> scene;
+    std::uint32_t lightIdx = 0;
 
     std::vector<std::vector<std::size_t>> sideSplit; //first - twosided, second - onesided
     std::unordered_map<std::uint32_t, std::vector<glm::mat4> > duplicatedModels;
@@ -80,7 +81,7 @@ private:
     GLuint colorBufferTexture;
     void setupColorBuffer();
     void deleteColorBuffer();
-    void renderScene(ShaderProgram& lightningProgram);
+    void renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProgram);
 
     //shadow map
     GLuint shadowMapFBO;

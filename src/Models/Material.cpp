@@ -1,6 +1,5 @@
 #include "Models/Material.h"
 
-
 void Material::Setup(
     ShaderProgram& program,
     std::unordered_map<std::string, std::unique_ptr<Texture>>& textures,

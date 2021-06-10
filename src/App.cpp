@@ -4,7 +4,8 @@
 #include "Simulation/Cloth.h"
 #include <map>
 
-App::App(const std::string& pathToConfig) : sideSplit(2)
+App::App(const std::string& pathToConfig)
+    : sideSplit(2)
 {
     std::ifstream input(pathToConfig);
     input >> config;
@@ -245,6 +246,11 @@ void App::loadModels()
         }
     }
 
+    //add mesh for light source
+    scene.push_back(createCube());
+    lightIdx = scene.size() - 1;
+    scene[lightIdx]->name = "lightCube";
+
     //compute scene bounding box
     AABBOX sceneBBOX = scene[0]->GetAABBOX();
     for (std::size_t i = 1; i < scene.size(); ++i) {
@@ -432,7 +438,7 @@ void App::renderShadowMap(ShaderProgram& depthProgram)
     for (std::size_t i = 0; i < scene.size(); ++i) {
         if (duplicatedModels.count(i)) {
             //TODO: use instancing here
-            for (auto &model: duplicatedModels[i]) {
+            for (auto& model : duplicatedModels[i]) {
                 depthProgram.SetUniform("model", model);
                 scene[i]->Draw();
             }
@@ -472,7 +478,7 @@ void App::visualizeShadowMap(ShaderProgram& quadDepthProgram)
     glUseProgram(0); //StopUseShader
 }
 
-void App::renderScene(ShaderProgram& lightningProgram)
+void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
 
@@ -493,6 +499,34 @@ void App::renderScene(ShaderProgram& lightningProgram)
     glm::mat4 projection = glm::perspective(glm::radians(state.camera.Zoom), ratio, 1.0f, 3000.0f);
 
     lightningProgram.SetUniform("visualizeNormalsWithColor", state.renderingMode == RenderingMode::NORMALS_COLOR);
+
+    //define point light sources positions
+    std::vector<glm::vec3> pointLightPositions = {
+        glm::vec3(-1176.74f, 137.186f, 406.721f),
+        glm::vec3(-1210.19f, 142.679f, -451.237f),
+        glm::vec3(1128.68f, 125.903f, -433.052f),
+        glm::vec3(1122.12f, 148.913f, 413.05f)
+    };
+    std::vector<glm::vec3> colors = {
+        glm::vec3(1.0f),
+        glm::vec3(1.0f),
+        glm::vec3(1.0f),
+        glm::vec3(1.0f)
+    };
+
+    //set light sources
+    for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
+        std::string idx = std::to_string(i);
+        //set point light source
+        glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
+        lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
+        lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.2f * colors[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.5f * colors[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(0.05f));
+        lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
+        lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
+        lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
+    }
 
     //set spotlight source
     lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
@@ -531,6 +565,9 @@ void App::renderScene(ShaderProgram& lightningProgram)
             glEnable(GL_CULL_FACE);
         }
         for (std::size_t j : sideSplit[i]) {
+            if (j == lightIdx) {
+                continue;
+            }
             //set material
             uint32_t matId = scene[j]->matId;
             materials[matId].Setup(
@@ -543,7 +580,7 @@ void App::renderScene(ShaderProgram& lightningProgram)
                 1,
                 2);
             if (duplicatedModels.count(j)) {
-                for (auto &model: duplicatedModels[j]) {
+                for (auto& model : duplicatedModels[j]) {
                     //TODO: use instancing here
                     glm::mat3 normalMatrix = glm::transpose(glm::inverse(view * model));
                     lightningProgram.SetUniform("model", model);
@@ -556,7 +593,23 @@ void App::renderScene(ShaderProgram& lightningProgram)
                 lightningProgram.SetUniform("normalMatrix", normalMatrix);
                 scene[j]->Draw();
             }
+            glBindTexture(GL_TEXTURE_2D, 0);
         }
+    }
+
+    glUseProgram(sourceProgram.ProgramObj); //StartUseShader
+    for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
+        //model
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, pointLightPositions[i]);
+        model = glm::scale(model, glm::vec3(10.0f));
+        //set uniforms with transforms
+        sourceProgram.SetUniform("model", model);
+        sourceProgram.SetUniform("view", view);
+        sourceProgram.SetUniform("projection", projection);
+        //color
+        sourceProgram.SetUniform("lightColor", colors[i]);
+        scene[lightIdx]->Draw();
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
@@ -666,6 +719,11 @@ void App::mainLoop()
     ShaderProgram quadDepthProgram(shaders);
     GL_CHECK_ERRORS;
 
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexLightSource.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentLightSource.glsl";
+    ShaderProgram sourceProgram(shaders);
+    GL_CHECK_ERRORS;
+
     //force 60 frames per second
     glfwSwapInterval(1);
 
@@ -709,8 +767,7 @@ void App::mainLoop()
         for (std::uint32_t j : poles[i]) {
             modelMats[i].push_back(createModelMat(
                 cloths[i]->upperLeftCorner,
-                scene[j]
-            ));
+                scene[j]));
         }
     }
     for (std::uint32_t i = 0; i < cloths.size(); ++i) {
@@ -774,8 +831,8 @@ void App::mainLoop()
         //recompute wind force
         accelerations[1].x = 14.0 * sin(currentFrame / 3.0);
         accelerations[1].z = 5.0 * sin(currentFrame / 6.0);
-        //simulate cloth movement
-        //TODO: it's possible to parallelize this
+        // simulate cloth movement
+        // TODO: it's possible to parallelize this
         for (auto& cloth : cloths) {
             double frac = state.deltaTime * 30;
             for (std::uint32_t i = 0; i < 90 * frac; ++i) {
@@ -800,8 +857,8 @@ void App::mainLoop()
             continue;
         }
 
-        //render scene to to colorBufferTexture
-        renderScene(lightningProgram);
+        //render scene to colorBufferTexture
+        renderScene(lightningProgram, sourceProgram);
 
         //draw texture with rendered scene to quad
         if (state.filling == 0) {

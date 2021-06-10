@@ -45,8 +45,8 @@ struct SpotLight {
 };
 
 //light sources
-// #define NR_POINT_LIGHTS 5
-// uniform PointLight pointLights[NR_POINT_LIGHTS];
+#define NR_POINT_LIGHTS 4
+uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
 uniform bool spotlightOn;
@@ -63,7 +63,7 @@ in VS_OUT
     vec4 fragPosLightSpace;
     vec2 texCoords;
     vec3 dirLightDirection;
-    // vec3 pointLightPositions[NR_POINT_LIGHTS];
+    vec3 pointLightPositions[NR_POINT_LIGHTS];
     vec3 spotlightPosition;
     vec3 spotlightDirection;
 }
@@ -106,14 +106,14 @@ float calcDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
     float currentDepth = projCoords.z;
     float shadow = 0.0;
     //simple PCF
-    for (int i = -1; i < 2; ++i) {
-        for (int j = -1; j < 2; ++j) {
+    for (int i = -2; i < 3; ++i) {
+        for (int j = -2; j < 3; ++j) {
             vec2 coord = vec2(projCoords.xy + vec2(i, j) * texelSize);
             float pcfDepth = texture(shadowMap, coord).r;
             shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
         }
     }
-    return shadow / 9.0;
+    return shadow / 25.0;
 }
 
 vec3 calcDirLight(
@@ -263,18 +263,18 @@ void main()
         viewDir,
         fsIn.fragPosLightSpace);
 
-    // //point light
-    // for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
-    //     color += calcPointLight(
-    //         pointLights[i],
-    //         fsIn.pointLightPositions[i],
-    //         material,
-    //         diffuseMapVal,
-    //         specularMapVal,
-    //         normal,
-    //         fsIn.fragPos,
-    //         viewDir);
-    // }
+    // point light
+    for (int i = 0; i < NR_POINT_LIGHTS; ++i) {
+        color += calcPointLight(
+            pointLights[i],
+            fsIn.pointLightPositions[i],
+            material,
+            diffuseMapVal,
+            specularMapVal,
+            normal,
+            fsIn.fragPos,
+            viewDir);
+    }
 
     if (spotlightOn) {
         //spotlight

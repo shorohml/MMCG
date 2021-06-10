@@ -83,12 +83,6 @@ public:
     {
     }
 
-    Mesh(
-        std::vector<float>&& data,
-        uint32_t n_vertices,
-        std::uint32_t matId_ = 0,
-        bool isStatic_ = true);
-
     std::uint32_t numberOfVertices() const
     {
         return positions.size();
