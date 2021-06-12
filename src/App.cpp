@@ -972,7 +972,7 @@ void App::mainLoop()
     }
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
-        glm::dvec3(7.0, 0.0, 5.0) //wind force
+        glm::dvec3(0.0) //wind force
     };
 
     //main loop with scene rendering at every frame
@@ -1012,7 +1012,7 @@ void App::mainLoop()
 
         //recompute wind force
         accelerations[1].x = 7.0 * sin(currentFrame / 3.0);
-        accelerations[1].z = 5.0 * sin(currentFrame / 6.0);
+        accelerations[1].z = 5.0 * sin(currentFrame / 6.0 + 2.0);
         // simulate cloth movement
         // TODO: it's possible to parallelize this
         for (auto& cloth : cloths) {

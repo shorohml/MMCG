@@ -14,4 +14,35 @@
 
 ## Сборка проекта
 
+1. Установить [Git LFS](https://git-lfs.github.com/)
+```
+git lfs install
+```
+2. Склонировать репозиторий 
+```
+git clone --recurse-submodules git@github.com:shorohml/MMCG.git
+```
+или
+```
+git clone git@github.com:shorohml/MMCG.git
+cd MMCG
+git submodule update --init --recursive
+```
+3. Собрать проект
+```
+mkdir -p build && cd build && cmake .. && make -j 5
+``` 
+4. Запустить приложение
+```
+./main
+```
+
 ## Выполненные пункты задания
+
+- База # 1
+- База # 2
+- VSM (variance shadow map): от + 2 до +4 балов
+- Тени от источника во все стороны (при помощи кубических текстурных карт): +4
+- Применение карт освещённости (diffuse, specular, normal map) (+3 балла)
+- Реалистичные движения (анимация персонажей) или физическая симуляция: (от 1 до
+4 баллов)
