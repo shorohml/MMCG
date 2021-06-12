@@ -56,7 +56,7 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 4
+#define NR_POINT_LIGHTS 2
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
@@ -91,8 +91,8 @@ void main()
     mat3 TBN = mat3(1.0f);
     if (material.hasNormalMap) {
         vec3 T = normalMatrix * normalize(aTangent);
-        vec3 N = normalMatrix * normalize(aNormal);
         vec3 B = normalMatrix * normalize(aBitangent);
+        vec3 N = normalMatrix * normalize(aNormal);
         TBN = transpose(mat3(T, B, N));
     }
 

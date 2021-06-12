@@ -15,8 +15,7 @@
 enum RenderingMode {
     DEFAULT = 0,
     SHADOW_MAP,
-    NORMALS_COLOR,
-    EDGE_DETECTION,
+    NORMALS_COLOR
 };
 
 struct AppState {

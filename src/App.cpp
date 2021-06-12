@@ -43,9 +43,9 @@ App::App(const std::string& pathToConfig)
     farPlane = 1500.0f;
     lightPos = std::vector<glm::vec3>(
         { glm::vec3(-619.532f, 155.27f, 144.924f),
-            glm::vec3(485.423f, 163.438f, 142.195f),
-            glm::vec3(-1325.59f, 764.256f, -531.42f),
-            glm::vec3(-1327.28f, 772.936f, 483.289f) });
+            glm::vec3(485.423f, 163.438f, 142.195f) });
+    // glm::vec3(-1325.59f, 764.256f, -531.42f),
+    // glm::vec3(-1327.28f, 772.936f, 483.289f) });
     lightColors = std::vector<glm::vec3>(lightPos.size(), glm::vec3(1.0f));
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
     for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
@@ -173,15 +173,6 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             }
         }
         break;
-    case GLFW_KEY_4: //edge detection
-        if (action == GLFW_PRESS) {
-            if (state->renderingMode == RenderingMode::EDGE_DETECTION) {
-                state->renderingMode = RenderingMode::DEFAULT;
-            } else {
-                state->renderingMode = RenderingMode::EDGE_DETECTION;
-            }
-        }
-        break;
     default:
         if (action == GLFW_PRESS) {
             (state->keys)[key] = true;
@@ -259,9 +250,9 @@ void App::loadModels()
         materials,
         textures);
     //don't unify flagpoles so we can use them separately later
-    for (std::uint32_t i = 0; i < scene.size(); ++i) {
-        if (materials[scene[i]->matId].name == std::string("flagpole")) {
-            scene[i]->isStatic = false;
+    for (auto& material : materials) {
+        if (material.second.name == std::string("floor")) {
+            std::cout << material.second.shininess << std::endl;
         }
     }
     scene = unifyStaticMeshes(
@@ -314,7 +305,7 @@ void App::setupColorBuffer()
     GL_CHECK_ERRORS;
     glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
     GL_CHECK_ERRORS;
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config["width"], config["height"], 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, config["width"], config["height"], 0, GL_RGB, GL_FLOAT, nullptr);
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
     GL_CHECK_ERRORS;
@@ -783,7 +774,7 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
         sourceProgram.SetUniform("view", view);
         sourceProgram.SetUniform("projection", projection);
         //color
-        sourceProgram.SetUniform("lightColor", lightColors[i]);
+        sourceProgram.SetUniform("lightColor", lightColors[i] + glm::vec3(0.1));
         scene[lightIdx]->Draw();
     }
 
@@ -807,7 +798,6 @@ void App::visualizeScene(ShaderProgram& quadColorProgram)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
     quadColorProgram.SetUniform("colorBuffer", 0);
-    quadColorProgram.SetUniform("edgeDetection", state.renderingMode == RenderingMode::EDGE_DETECTION);
 
     glBindVertexArray(quadVAO);
     GL_CHECK_ERRORS;

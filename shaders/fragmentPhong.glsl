@@ -50,7 +50,7 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 4
+#define NR_POINT_LIGHTS 2
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
@@ -126,7 +126,7 @@ float calcDirShadowVSM(DirLight light, vec4 fragPosLightSpace, vec3 normal, vec3
     vec2 moments = texture(light.shadowMap, vec2(projCoords.xy)).rg;
     float sigma2 = moments.g - moments.r * moments.r;
     //compute proba
-    float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.001);
+    float bias = max(0.002 * (1.0 - dot(normal, lightDir)), 0.002);
     float diff = projCoords.z - bias - moments.r;
     float pmax = sigma2 / (sigma2 + diff * diff);
     return projCoords.z - bias <= moments.r ? 1.0 : pmax;
