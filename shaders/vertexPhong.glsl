@@ -32,6 +32,7 @@ struct DirLight {
 
 struct PointLight {
     vec3 position; //in View space
+    vec3 positionWorldSpace;
 
     vec3 ambient;
     vec3 diffuse;
@@ -51,7 +52,7 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 4
+#define NR_POINT_LIGHTS 1
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
@@ -68,6 +69,7 @@ out VS_OUT {
     vec3 normal;
     vec3 fragPos;
     vec4 fragPosLightSpace;
+    vec4 fragPosWorldSpace;
     vec2 texCoords;
     vec3 dirLightDirection;
     vec3 pointLightPositions[NR_POINT_LIGHTS];
@@ -93,6 +95,7 @@ void main()
     vsOut.normal = normalMatrix * aNormal;
     vsOut.texCoords = aTexCoords;
     vsOut.fragPosLightSpace = lightSpaceMatrix * model * vec4(aPos, 1.0);
+    vsOut.fragPosWorldSpace = model * vec4(aPos, 1.0);
 
     //transform all this stuff to tangent space
     vsOut.fragPos = TBN * vec3(frag);

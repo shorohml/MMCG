@@ -21,11 +21,11 @@ App::App(const std::string& pathToConfig)
 
     //setup light source for shadow mapping
     //TODO: move this to some separate method for scene setup
-    dir = glm::normalize(glm::vec3(1.0f, -4.5f, -1.25f));
-    glm::vec3 pos = -2100.0f * dir;
+    lightDir = glm::normalize(glm::vec3(1.0f, -4.5f, -1.25f));
+    glm::vec3 pos = -2100.0f * lightDir;
     glm::mat4 lightView = glm::lookAt(
         pos,
-        pos + dir,
+        pos + lightDir,
         glm::vec3(0.0f, 0.0f, -1.0f));
     glm::mat4 orthoProjection = glm::ortho(
         -2500.0f,
@@ -35,6 +35,20 @@ App::App(const std::string& pathToConfig)
         0.0f,
         3000.0f);
     lightSpaceMatrix = orthoProjection * lightView;
+
+    //setup point light source for shadow mapping
+    //TODO: move this to some separate method for scene setup
+    float aspect = static_cast<float>(pointShadowMapWidth) / static_cast<float>(pointShadowMapHeight);
+    nearPlane = 1.0f;
+    farPlane = 1000.0f;
+    lightPos= glm::vec3(-619.532f, 155.27f, 144.924f);
+    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
+    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
+    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
+    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
 }
 
 int App::initGL() const
@@ -329,7 +343,8 @@ void App::setupShadowMapBuffer()
     glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
     GL_CHECK_ERRORS;
 
-    //generate textures for depth map (we need multiple for filtering) and attach it to framebuffer
+    //generate textures for depth map (we need three for filtering - original, x-axis pass, y-axis pass)
+    //and attach it to framebuffer
     shadowMapTextures = std::vector<GLuint>(3);
     for (std::uint32_t i = 0; i < 3; ++i) {
         glGenTextures(1, &shadowMapTextures[i]);
@@ -371,67 +386,12 @@ void App::setupShadowMapBuffer()
 
 void App::deleteShadowMapBuffer()
 {
-    for (std::uint32_t i = 0; i < shadowMapTextures.size(); ++i) {
-        glDeleteTextures(1, &shadowMapTextures[i]);
-    }
+    glDeleteTextures(3, shadowMapTextures.data());
+    GL_CHECK_ERRORS;
+    glDeleteRenderbuffers(1, &shadowMapRBO);
     GL_CHECK_ERRORS;
     glDeleteFramebuffers(1, &shadowMapFBO);
     GL_CHECK_ERRORS;
-}
-
-//TODO: Move this to Mesh.cpp
-void App::setupQuad()
-{
-    float quadData[16] = {
-        -1.0f, -1.0f, 0.0f, 0.0f,
-        1.0f, -1.0f, 1.0f, 0.0f,
-        1.0f, 1.0f, 1.0f, 1.0f,
-        -1.0f, 1.0f, 0.0f, 1.0f
-    };
-    uint32_t indices[6] = {
-        0, 2, 3,
-        2, 0, 1
-    };
-    glGenVertexArrays(1, &quadVAO);
-    GL_CHECK_ERRORS;
-    glGenBuffers(1, &quadVBO);
-    GL_CHECK_ERRORS;
-    glGenBuffers(1, &quadEBO);
-    GL_CHECK_ERRORS;
-    //bind VAO and VBO
-    glBindVertexArray(quadVAO);
-    GL_CHECK_ERRORS;
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-    GL_CHECK_ERRORS;
-    glBufferData(GL_ARRAY_BUFFER, 16 * sizeof(GL_FLOAT), quadData, GL_STATIC_DRAW);
-    GL_CHECK_ERRORS;
-    //positions
-    glEnableVertexAttribArray(0);
-    GL_CHECK_ERRORS;
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 4, (GLvoid*)0);
-    GL_CHECK_ERRORS;
-    //texCoords
-    glEnableVertexAttribArray(1);
-    GL_CHECK_ERRORS;
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 4, (GLvoid*)(2 * sizeof(GL_FLOAT)));
-    GL_CHECK_ERRORS;
-    //indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadEBO);
-    GL_CHECK_ERRORS;
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(uint32_t), indices, GL_STATIC_DRAW);
-    GL_CHECK_ERRORS;
-    //unbind VAO and VBO
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    GL_CHECK_ERRORS;
-    glBindVertexArray(0);
-    GL_CHECK_ERRORS;
-}
-
-void App::deleteQuad()
-{
-    glDeleteBuffers(1, &quadVAO);
-    glDeleteBuffers(1, &quadVBO);
-    glDeleteBuffers(1, &quadEBO);
 }
 
 void App::renderShadowMap(ShaderProgram& depthProgram, ShaderProgram& quadDepthProgram)
@@ -441,7 +401,6 @@ void App::renderShadowMap(ShaderProgram& depthProgram, ShaderProgram& quadDepthP
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapTextures[0], 0);
     GL_CHECK_ERRORS;
 
-    //enabling depth testing
     glEnable(GL_DEPTH_TEST);
 
     glViewport(0, 0, shadowMapWidth, shadowMapHeight);
@@ -539,11 +498,144 @@ void App::visualizeShadowMap(ShaderProgram& quadDepthProgram)
     glUseProgram(0); //StopUseShader
 }
 
+void App::setupPointShadowMapBuffer()
+{
+    glGenFramebuffers(1, &pointShadowMapFBO);
+    GL_CHECK_ERRORS;
+    glBindFramebuffer(GL_FRAMEBUFFER, pointShadowMapFBO);
+    GL_CHECK_ERRORS;
+
+    //create cubemap texture
+    glGenTextures(1, &pointShadowMapTexture);
+    GL_CHECK_ERRORS;
+    glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowMapTexture);
+    for (std::uint32_t i = 0; i < 6; ++i) {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
+            pointShadowMapWidth, pointShadowMapHeight, 0,
+            GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    GL_CHECK_ERRORS;
+
+    //attach texture to framebuffer
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, pointShadowMapTexture, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error("Couldn't create framebuffer");
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_CHECK_ERRORS;
+}
+
+void App::deletePointShadowMapBuffer()
+{
+    glDeleteTextures(1, &pointShadowMapTexture);
+    glDeleteFramebuffers(1, &pointShadowMapFBO);
+    GL_CHECK_ERRORS;
+}
+
+void App::renderPointShadowMap(ShaderProgram& depthProgram)
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, pointShadowMapFBO);
+
+    glEnable(GL_DEPTH_TEST);
+
+    glViewport(0, 0, pointShadowMapWidth, pointShadowMapHeight);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    glUseProgram(depthProgram.ProgramObj); //StartUseShader
+
+    for (std::uint32_t i = 0; i < lightSpaceTransforms.size(); ++i) {
+        depthProgram.SetUniform(
+            "lightSpaceTransforms[" + std::to_string(i) + "]",
+            lightSpaceTransforms[i]
+        );
+    }
+    depthProgram.SetUniform("lightPos", lightPos);
+    depthProgram.SetUniform("farPlane", farPlane);
+
+    for (std::size_t i = 0; i < scene.size(); ++i) {
+        if (duplicatedModels.count(i)) {
+            //TODO: use instancing here
+            for (auto& model : duplicatedModels[i]) {
+                depthProgram.SetUniform("model", model);
+                scene[i]->Draw();
+            }
+        } else {
+            depthProgram.SetUniform("model", scene[i]->model);
+            scene[i]->Draw();
+        }
+    }
+
+    glUseProgram(0); //StopUseShader
+}
+
+//TODO: Move this to Mesh.cpp
+void App::setupQuad()
+{
+    float quadData[16] = {
+        -1.0f, -1.0f, 0.0f, 0.0f,
+        1.0f, -1.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 1.0f, 1.0f,
+        -1.0f, 1.0f, 0.0f, 1.0f
+    };
+    uint32_t indices[6] = {
+        0, 2, 3,
+        2, 0, 1
+    };
+    glGenVertexArrays(1, &quadVAO);
+    GL_CHECK_ERRORS;
+    glGenBuffers(1, &quadVBO);
+    GL_CHECK_ERRORS;
+    glGenBuffers(1, &quadEBO);
+    GL_CHECK_ERRORS;
+    //bind VAO and VBO
+    glBindVertexArray(quadVAO);
+    GL_CHECK_ERRORS;
+    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+    GL_CHECK_ERRORS;
+    glBufferData(GL_ARRAY_BUFFER, 16 * sizeof(GL_FLOAT), quadData, GL_STATIC_DRAW);
+    GL_CHECK_ERRORS;
+    //positions
+    glEnableVertexAttribArray(0);
+    GL_CHECK_ERRORS;
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 4, (GLvoid*)0);
+    GL_CHECK_ERRORS;
+    //texCoords
+    glEnableVertexAttribArray(1);
+    GL_CHECK_ERRORS;
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(GL_FLOAT) * 4, (GLvoid*)(2 * sizeof(GL_FLOAT)));
+    GL_CHECK_ERRORS;
+    //indices
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quadEBO);
+    GL_CHECK_ERRORS;
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(uint32_t), indices, GL_STATIC_DRAW);
+    GL_CHECK_ERRORS;
+    //unbind VAO and VBO
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    GL_CHECK_ERRORS;
+    glBindVertexArray(0);
+    GL_CHECK_ERRORS;
+}
+
+void App::deleteQuad()
+{
+    glDeleteBuffers(1, &quadVAO);
+    glDeleteBuffers(1, &quadVBO);
+    glDeleteBuffers(1, &quadEBO);
+}
+
 void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
 
-    //enabling depth testing
     glEnable(GL_DEPTH_TEST);
 
     //clear screen and then fill it with color
@@ -563,15 +655,9 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
 
     //define point light sources positions
     std::vector<glm::vec3> pointLightPositions = {
-        glm::vec3(-1176.74f, 137.186f, 406.721f),
-        glm::vec3(-1210.19f, 142.679f, -451.237f),
-        glm::vec3(1128.68f, 125.903f, -433.052f),
-        glm::vec3(1122.12f, 148.913f, 413.05f)
+        lightPos
     };
     std::vector<glm::vec3> colors = {
-        glm::vec3(1.0f),
-        glm::vec3(1.0f),
-        glm::vec3(1.0f),
         glm::vec3(1.0f)
     };
 
@@ -581,9 +667,10 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
         //set point light source
         glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
         lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
-        lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.2f * colors[i]);
-        lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.5f * colors[i]);
-        lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(0.05f));
+        lightningProgram.SetUniform("pointLights[" + idx + "].positionWorldSpace", pointLightPositions[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.3f * colors[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.8f * colors[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(1.0f));
         lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
         lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
         lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
@@ -603,7 +690,7 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
     lightningProgram.SetUniform("spotLight.outerCutOff", glm::cos(glm::radians(20.0f)));
 
     //set directional light source
-    glm::vec4 direction = glm::vec4(dir, 0.0f);
+    glm::vec4 direction = glm::vec4(lightDir, 0.0f);
     lightningProgram.SetUniform("dirLight.direction", glm::vec3(view * direction));
     lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.3f));
     lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.8f));
@@ -616,6 +703,11 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, shadowMapTextures[2]);
     lightningProgram.SetUniform("shadowMap", 3);
+
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowMapTexture);
+    lightningProgram.SetUniform("pointShadowMap", 4);
+    lightningProgram.SetUniform("farPlane", farPlane);
 
     for (std::size_t i = 0; i < 2; ++i) {
         if (i == 0) {
@@ -785,6 +877,12 @@ void App::mainLoop()
     ShaderProgram sourceProgram(shaders);
     GL_CHECK_ERRORS;
 
+    shaders[GL_VERTEX_SHADER] = shadersPath + "/vertexPointDepth.glsl";
+    shaders[GL_FRAGMENT_SHADER] = shadersPath + "/fragmentPointDepth.glsl";
+    shaders[GL_GEOMETRY_SHADER] = shadersPath + "/geometryPointDepth.glsl";
+    ShaderProgram pointDepthPorgram(shaders);
+    GL_CHECK_ERRORS;
+
     //force 60 frames per second
     glfwSwapInterval(1);
 
@@ -800,6 +898,7 @@ void App::mainLoop()
     //setup framebuffers and quad to render resulting textures
     setupColorBuffer();
     setupShadowMapBuffer();
+    setupPointShadowMapBuffer();
     setupQuad();
 
     //find flagpoles
@@ -851,7 +950,7 @@ void App::mainLoop()
     }
     std::vector<glm::dvec3> accelerations = {
         glm::dvec3(0.0, -9.8, 0.0),
-        glm::dvec3(14.0, 0.0, 5.0) //wind force
+        glm::dvec3(7.0, 0.0, 5.0) //wind force
     };
 
     //main loop with scene rendering at every frame
@@ -890,7 +989,7 @@ void App::mainLoop()
         doCameraMovement();
 
         //recompute wind force
-        accelerations[1].x = 14.0 * sin(currentFrame / 3.0);
+        accelerations[1].x = 7.0 * sin(currentFrame / 3.0);
         accelerations[1].z = 5.0 * sin(currentFrame / 6.0);
         // simulate cloth movement
         // TODO: it's possible to parallelize this
@@ -917,6 +1016,9 @@ void App::mainLoop()
             glfwSwapBuffers(window);
             continue;
         }
+
+        //render point shadow map to pointShadowMapTexture
+        renderPointShadowMap(pointDepthPorgram);
 
         //render scene to colorBufferTexture
         renderScene(lightningProgram, sourceProgram);
@@ -950,6 +1052,7 @@ void App::release()
     deleteQuad();
     deleteColorBuffer();
     deleteShadowMapBuffer();
+    deletePointShadowMapBuffer();
     glfwTerminate();
 }
 

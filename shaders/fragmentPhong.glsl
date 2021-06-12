@@ -26,6 +26,7 @@ struct DirLight {
 
 struct PointLight {
     vec3 position; //in View space
+    vec3 positionWorldSpace;
 
     vec3 ambient;
     vec3 diffuse;
@@ -45,12 +46,14 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 4
+#define NR_POINT_LIGHTS 1
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
 uniform bool spotlightOn;
 uniform sampler2D shadowMap;
+uniform samplerCube pointShadowMap;
+uniform float farPlane;
 
 uniform Material material;
 
@@ -61,6 +64,7 @@ in VS_OUT
     vec3 normal;
     vec3 fragPos;
     vec4 fragPosLightSpace;
+    vec4 fragPosWorldSpace;
     vec2 texCoords;
     vec3 dirLightDirection;
     vec3 pointLightPositions[NR_POINT_LIGHTS];
@@ -99,7 +103,7 @@ float calcDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
     float pcfDepth = texture(shadowMap, vec2(projCoords.xy)).r;
     //bias to remove shadow achne
     float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.005);
-    return projCoords.z - bias < pcfDepth ? 1.0 : 0.0;
+    return projCoords.z - bias <= pcfDepth ? 1.0 : 0.0;
 }
 
 float calcDirShadowPCF(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
@@ -116,7 +120,7 @@ float calcDirShadowPCF(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
         for (int j = -2; j < 3; ++j) {
             vec2 coord = vec2(projCoords.xy + vec2(i, j) * texelSize);
             float pcfDepth = texture(shadowMap, coord).r;
-            shadow += currentDepth - bias < pcfDepth ? 1.0 : 0.0;
+            shadow += currentDepth - bias <= pcfDepth ? 1.0 : 0.0;
         }
     }
     return shadow / 25.0;
@@ -133,7 +137,7 @@ float calcDirShadowVSM(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
     float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.001);
     float diff = projCoords.z - bias - moments.r;
     float pmax = sigma2 / (sigma2 + diff * diff);
-    return projCoords.z - bias < moments.r ? 1.0 : pmax;
+    return projCoords.z - bias <= moments.r ? 1.0 : pmax;
 }
 
 vec3 calcDirLight(
@@ -171,6 +175,19 @@ float calcAttenuation(
     return 1.0 / (light.constant + light.linear * dist + light.quadratic * dist * dist);
 }
 
+float calcPointShadow(vec3 fragPosWorldSpace, vec3 lightPosWorldSpace)
+{
+    //vector from fragment to light source
+    vec3 fragToLight = fragPosWorldSpace - lightPosWorldSpace; 
+    //distance to closest fragment
+    float closestDepth = texture(pointShadowMap, fragToLight).r;
+    //transrotm from [0; 1] to [0, farPlane]
+    closestDepth *= farPlane;
+    float currentDepth = length(fragToLight);
+    float bias = 5.0;
+    return currentDepth - bias <= closestDepth ? 1.0 : 0.0; 
+}
+
 vec3 calcPointLight(
     PointLight light, //light
     vec3 position, //use this instead of value from uniform for normal map optimization
@@ -179,6 +196,7 @@ vec3 calcPointLight(
     vec3 specularMapVal, //sampled from specular map
     vec3 norm, //normal
     vec3 fragPos, //fragment postion in View space
+    vec3 fragPosWorldSpace, //fragment postion in world space
     vec3 viewDir) //direction from fragment to viewer (normalized)
 {
     vec3 lightDir = normalize(position - fragPos);
@@ -198,7 +216,9 @@ vec3 calcPointLight(
     //specular
     vec3 specular = light.specular * calcSpecular(lightDir, norm, viewDir, specularMapVal * material.specular, material);
 
-    return (ambient + diffuse + specular) * attenuation;
+    float shadow = calcPointShadow(fragPosWorldSpace, light.positionWorldSpace);
+
+    return (ambient + shadow*(diffuse + specular)) * attenuation;
 }
 
 vec3 calcSpotLight(
@@ -273,7 +293,8 @@ void main()
     }
 
     //directional light
-    vec3 color = calcDirLight(
+    vec3 color = vec3(0.0);
+    color = calcDirLight(
         dirLight,
         fsIn.dirLightDirection,
         material,
@@ -293,6 +314,7 @@ void main()
             specularMapVal,
             normal,
             fsIn.fragPos,
+            fsIn.fragPosWorldSpace.xyz,
             viewDir);
     }
 

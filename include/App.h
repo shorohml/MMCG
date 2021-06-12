@@ -68,7 +68,7 @@ private:
     std::uint32_t lightIdx = 0;
 
     std::vector<std::vector<std::size_t>> sideSplit; //first - twosided, second - onesided
-    std::unordered_map<std::uint32_t, std::vector<glm::mat4> > duplicatedModels;
+    std::unordered_map<std::uint32_t, std::vector<glm::mat4>> duplicatedModels;
 
     nlohmann::json config; //application config
     GLFWwindow* window; //window
@@ -84,18 +84,35 @@ private:
     void renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProgram);
 
     //shadow map
+    //TODO: move this to separate class
     GLuint shadowMapFBO;
     GLuint shadowMapRBO;
     std::vector<GLuint> shadowMapTextures;
     const uint32_t shadowMapWidth = 4096;
     const uint32_t shadowMapHeight = 4096;
-    glm::vec3 dir;
+    glm::vec3 lightDir;
     glm::mat4 lightSpaceMatrix;
     void setupShadowMapBuffer();
     void deleteShadowMapBuffer();
     void renderShadowMap(ShaderProgram& depthProgram, ShaderProgram& quadDepthProgram);
 
+    //point shadow map
+    //TODO: move this to separate class
+    GLuint pointShadowMapFBO;
+    GLuint pointShadowMapRBO;
+    GLuint pointShadowMapTexture;
+    const uint32_t pointShadowMapWidth = 1024;
+    const uint32_t pointShadowMapHeight = 1024;
+    glm::vec3 lightPos;
+    float nearPlane;
+    float farPlane;
+    std::vector<glm::mat4> lightSpaceTransforms;
+    void setupPointShadowMapBuffer();
+    void deletePointShadowMapBuffer();
+    void renderPointShadowMap(ShaderProgram& depthProgram);
+
     //simple quad that fills screen
+    //TODO: move this to Mesh.cpp
     GLuint quadVAO;
     GLuint quadVBO;
     GLuint quadEBO;
@@ -125,5 +142,6 @@ private:
     void mainLoop();
 
     //release GPU resources
+    //TODO: move this to destructor
     void release();
 };
