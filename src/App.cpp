@@ -40,10 +40,12 @@ App::App(const std::string& pathToConfig)
     //TODO: move this to some separate method for scene setup
     float aspect = static_cast<float>(pointShadowMapWidth) / static_cast<float>(pointShadowMapHeight);
     nearPlane = 1.0f;
-    farPlane = 1000.0f;
+    farPlane = 1500.0f;
     lightPos = std::vector<glm::vec3>(
         { glm::vec3(-619.532f, 155.27f, 144.924f),
-            glm::vec3(485.423f, 163.438f, 142.195f) });
+            glm::vec3(485.423f, 163.438f, 142.195f),
+            glm::vec3(-1325.59f, 764.256f, -531.42f),
+            glm::vec3(-1327.28f, 772.936f, 483.289f) });
     lightColors = std::vector<glm::vec3>(lightPos.size(), glm::vec3(1.0f));
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
     for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
