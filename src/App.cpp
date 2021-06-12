@@ -258,9 +258,23 @@ void App::loadModels()
         scene,
         materials,
         textures);
+    //don't unify flagpoles so we can use them separately later
+    for (std::uint32_t i = 0; i < scene.size(); ++i) {
+        if (materials[scene[i]->matId].name == std::string("flagpole")) {
+            scene[i]->isStatic = false;
+        }
+    }
+    scene = unifyStaticMeshes(
+        scene,
+        materials);
+    for (std::uint32_t i = 0; i < scene.size(); ++i) {
+        if (materials[scene[i]->matId].name == std::string("flagpole")) {
+            scene[i]->isStatic = true;
+        }
+    }
 
     //separate meshes with and without face culling
-    for (std::size_t i = 0; i < scene.size() - 1; ++i) {
+    for (std::size_t i = 0; i < scene.size(); ++i) {
         uint32_t matId = scene[i]->matId;
         if (materials[matId].twosided) {
             sideSplit[0].push_back(i);

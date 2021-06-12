@@ -270,15 +270,15 @@ std::vector<std::shared_ptr<Mesh>> unifyStaticMeshes(
         std::vector<uint32_t> indices(numFaces * 3);
         std::uint32_t vertexShift = 0;
         std::uint32_t faceShift = 0;
-        for (uint32_t i : item.second) {
-            for (std::size_t j = 0; j < scene[i]->numberOfVertices(); ++j) {
+        for (std::uint32_t i : item.second) {
+            for (std::uint32_t j = 0; j < scene[i]->numberOfVertices(); ++j) {
                 positions[vertexShift + j] = scene[i]->model * glm::vec4(scene[i]->positions[j], 1.0f);
                 normals[vertexShift + j] = scene[i]->model * glm::vec4(scene[i]->normals[j], 0.0f);
                 texCoords[vertexShift + j] = scene[i]->texCoords[j];
                 tangents[vertexShift + j] = scene[i]->tangents[j];
                 bitangents[vertexShift + j] = scene[i]->bitangents[j];
             }
-            for (std::size_t j = 0; j < scene[i]->numberOfFaces() * 3; ++j) {
+            for (std::uint32_t j = 0; j < scene[i]->numberOfFaces() * 3; ++j) {
                 indices[faceShift + j] = scene[i]->indices[j] + vertexShift;
             }
             vertexShift += scene[i]->numberOfVertices();
@@ -287,7 +287,7 @@ std::vector<std::shared_ptr<Mesh>> unifyStaticMeshes(
         newScene.push_back(std::make_shared<Mesh>(
             positions, normals, texCoords, indices, tangents, bitangents, item.first, glm::mat4(1.0f)));
     }
-    for (std::size_t i : skipped) {
+    for (std::uint32_t i : skipped) {
         newScene.push_back(scene[i]);
     }
     return newScene;
