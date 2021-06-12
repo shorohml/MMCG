@@ -22,6 +22,8 @@ struct DirLight {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    sampler2D shadowMap;
 };
 
 struct PointLight {
@@ -35,6 +37,8 @@ struct PointLight {
     float constant; //parameters for attenuation
     float linear;
     float quadratic;
+
+    samplerCube pointShadowMap;
 };
 
 struct SpotLight {
@@ -46,13 +50,11 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 1
+#define NR_POINT_LIGHTS 2
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
 uniform bool spotlightOn;
-uniform sampler2D shadowMap;
-uniform samplerCube pointShadowMap;
 uniform float farPlane;
 
 uniform Material material;
@@ -96,21 +98,11 @@ vec3 calcSpecular(
     return materialSpecular * spec;
 }
 
-float calcDirShadow(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+float calcDirShadowPCF(DirLight light, vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 {
     //transform to [0, 1]
     vec3 projCoords = fragPosLightSpace.xyz * 0.5 + 0.5;
-    float pcfDepth = texture(shadowMap, vec2(projCoords.xy)).r;
-    //bias to remove shadow achne
-    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.005);
-    return projCoords.z - bias <= pcfDepth ? 1.0 : 0.0;
-}
-
-float calcDirShadowPCF(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
-{
-    //transform to [0, 1]
-    vec3 projCoords = fragPosLightSpace.xyz * 0.5 + 0.5;
-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    vec2 texelSize = 1.0 / textureSize(light.shadowMap, 0);
     //bias to remove shadow achne
     float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.005);
     float currentDepth = projCoords.z;
@@ -119,19 +111,19 @@ float calcDirShadowPCF(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
     for (int i = -2; i < 3; ++i) {
         for (int j = -2; j < 3; ++j) {
             vec2 coord = vec2(projCoords.xy + vec2(i, j) * texelSize);
-            float pcfDepth = texture(shadowMap, coord).r;
+            float pcfDepth = texture(light.shadowMap, coord).r;
             shadow += currentDepth - bias <= pcfDepth ? 1.0 : 0.0;
         }
     }
     return shadow / 25.0;
 }
 
-float calcDirShadowVSM(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+float calcDirShadowVSM(DirLight light, vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
 {
     //transform to [0, 1]
     vec3 projCoords = fragPosLightSpace.xyz * 0.5 + 0.5;
     //compute moments
-    vec2 moments = texture(shadowMap, vec2(projCoords.xy)).rg;
+    vec2 moments = texture(light.shadowMap, vec2(projCoords.xy)).rg;
     float sigma2 = moments.g - moments.r * moments.r;
     //compute proba
     float bias = max(0.001 * (1.0 - dot(normal, lightDir)), 0.001);
@@ -161,7 +153,7 @@ vec3 calcDirLight(
     //specular
     vec3 specular = light.specular * calcSpecular(lightDir, norm, viewDir, specularMapVal * material.specular, material);
 
-    float shadow = calcDirShadowVSM(fragPosLightSpace, norm, lightDir);
+    float shadow = calcDirShadowVSM(light, fragPosLightSpace, norm, lightDir);
 
     return ambient + shadow * (diffuse + specular);
 }
@@ -175,17 +167,30 @@ float calcAttenuation(
     return 1.0 / (light.constant + light.linear * dist + light.quadratic * dist * dist);
 }
 
-float calcPointShadow(vec3 fragPosWorldSpace, vec3 lightPosWorldSpace)
+float calcPointShadowPCF(PointLight light, vec3 fragPosWorldSpace, vec3 lightPosWorldSpace)
 {
+    vec3 sampleOffsetDirections[20] = vec3[]
+    (
+        vec3(1,  1,  1), vec3(1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
+        vec3(1,  1, -1), vec3(1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+        vec3(1,  1,  0), vec3(1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+        vec3(1,  0,  1), vec3(-1,  0,  1), vec3(1,  0, -1), vec3(-1,  0, -1),
+        vec3(0,  1,  1), vec3(0, -1,  1), vec3(0, -1, -1), vec3(0,  1, -1)
+    );
+    float bias = 10.0;
+    float shadow = 0.0;
+    float radius = 0.5;
     //vector from fragment to light source
     vec3 fragToLight = fragPosWorldSpace - lightPosWorldSpace; 
-    //distance to closest fragment
-    float closestDepth = texture(pointShadowMap, fragToLight).r;
-    //transrotm from [0; 1] to [0, farPlane]
-    closestDepth *= farPlane;
     float currentDepth = length(fragToLight);
-    float bias = 5.0;
-    return currentDepth - bias <= closestDepth ? 1.0 : 0.0; 
+    for (int i = 0; i < 20; ++i) {
+        //distance to closest fragment
+        float closestDepth = texture(light.pointShadowMap, fragToLight + sampleOffsetDirections[i] * radius).r;
+        //transrotm from [0; 1] to [0, farPlane]
+        closestDepth *= farPlane;
+        shadow += currentDepth - bias <= closestDepth ? 1.0 : 0.0; 
+    }
+    return shadow / 20.0;
 }
 
 vec3 calcPointLight(
@@ -216,7 +221,7 @@ vec3 calcPointLight(
     //specular
     vec3 specular = light.specular * calcSpecular(lightDir, norm, viewDir, specularMapVal * material.specular, material);
 
-    float shadow = calcPointShadow(fragPosWorldSpace, light.positionWorldSpace);
+    float shadow = calcPointShadowPCF(light, fragPosWorldSpace, light.positionWorldSpace);
 
     return (ambient + shadow*(diffuse + specular)) * attenuation;
 }

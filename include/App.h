@@ -98,15 +98,16 @@ private:
 
     //point shadow map
     //TODO: move this to separate class
+    //TODO: process transparent objects corerctly
     GLuint pointShadowMapFBO;
-    GLuint pointShadowMapRBO;
-    GLuint pointShadowMapTexture;
+    std::vector<GLuint> pointShadowMapTextures;
     const uint32_t pointShadowMapWidth = 1024;
     const uint32_t pointShadowMapHeight = 1024;
-    glm::vec3 lightPos;
+    std::vector<glm::vec3> lightPos;
+    std::vector<glm::vec3> lightColors;
     float nearPlane;
     float farPlane;
-    std::vector<glm::mat4> lightSpaceTransforms;
+    std::vector<std::vector<glm::mat4>> lightSpaceTransforms;
     void setupPointShadowMapBuffer();
     void deletePointShadowMapBuffer();
     void renderPointShadowMap(ShaderProgram& depthProgram);

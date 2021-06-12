@@ -28,6 +28,8 @@ struct DirLight {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    sampler2D shadowMap;
 };
 
 struct PointLight {
@@ -41,6 +43,8 @@ struct PointLight {
     float constant; //parameters for attenuation
     float linear;
     float quadratic;
+
+    samplerCube pointShadowMap;
 };
 
 struct SpotLight {
@@ -52,7 +56,7 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 1
+#define NR_POINT_LIGHTS 2
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;

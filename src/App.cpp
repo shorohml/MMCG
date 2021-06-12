@@ -41,14 +41,21 @@ App::App(const std::string& pathToConfig)
     float aspect = static_cast<float>(pointShadowMapWidth) / static_cast<float>(pointShadowMapHeight);
     nearPlane = 1.0f;
     farPlane = 1000.0f;
-    lightPos= glm::vec3(-619.532f, 155.27f, 144.924f);
+    lightPos = std::vector<glm::vec3>(
+        { glm::vec3(-619.532f, 155.27f, 144.924f),
+            glm::vec3(485.423f, 163.438f, 142.195f) });
+    lightColors = std::vector<glm::vec3>(lightPos.size(), glm::vec3(1.0f));
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
-    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
-    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
-    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
-    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
-    lightSpaceTransforms.push_back(shadowProj * glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
+    for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
+        std::vector<glm::mat4> transforms;
+        transforms.push_back(shadowProj * glm::lookAt(lightPos[i], lightPos[i] + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+        transforms.push_back(shadowProj * glm::lookAt(lightPos[i], lightPos[i] + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0, -1.0, 0.0)));
+        transforms.push_back(shadowProj * glm::lookAt(lightPos[i], lightPos[i] + glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+        transforms.push_back(shadowProj * glm::lookAt(lightPos[i], lightPos[i] + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0)));
+        transforms.push_back(shadowProj * glm::lookAt(lightPos[i], lightPos[i] + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0)));
+        transforms.push_back(shadowProj * glm::lookAt(lightPos[i], lightPos[i] + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0)));
+        lightSpaceTransforms.push_back(transforms);
+    }
 }
 
 int App::initGL() const
@@ -138,7 +145,7 @@ void App::OnKeyboardPressed(GLFWwindow* window, int key, int /* scancode */, int
             break;
         }
         std::cout << "Camera postion: ";
-        std::cout << state->camera.Position.x << ' ' << state->camera.Position.y << ' ' << state->camera.Position.z << std::endl;
+        std::cout << state->camera.Position.x << "f, " << state->camera.Position.y << "f, " << state->camera.Position.z << 'f' << std::endl;
         std::cout << "yaw = " << state->camera.Yaw << ", pitch = " << state->camera.Pitch << std::endl;
         break;
     case GLFW_KEY_1: //default rendring
@@ -345,8 +352,8 @@ void App::setupShadowMapBuffer()
 
     //generate textures for depth map (we need three for filtering - original, x-axis pass, y-axis pass)
     //and attach it to framebuffer
-    shadowMapTextures = std::vector<GLuint>(3);
-    for (std::uint32_t i = 0; i < 3; ++i) {
+    shadowMapTextures = std::vector<GLuint>(2);
+    for (std::uint32_t i = 0; i < 2; ++i) {
         glGenTextures(1, &shadowMapTextures[i]);
         GL_CHECK_ERRORS;
         glBindTexture(GL_TEXTURE_2D, shadowMapTextures[i]);
@@ -386,7 +393,7 @@ void App::setupShadowMapBuffer()
 
 void App::deleteShadowMapBuffer()
 {
-    glDeleteTextures(3, shadowMapTextures.data());
+    glDeleteTextures(2, shadowMapTextures.data());
     GL_CHECK_ERRORS;
     glDeleteRenderbuffers(1, &shadowMapRBO);
     GL_CHECK_ERRORS;
@@ -445,7 +452,7 @@ void App::renderShadowMap(ShaderProgram& depthProgram, ShaderProgram& quadDepthP
     GL_CHECK_ERRORS;
 
     //y-direction
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapTextures[2], 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapTextures[0], 0);
     GL_CHECK_ERRORS;
 
     glDisable(GL_DEPTH_TEST);
@@ -481,7 +488,7 @@ void App::visualizeShadowMap(ShaderProgram& quadDepthProgram)
 
     //set color bufer texture
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, shadowMapTextures[2]);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTextures[0]);
     quadDepthProgram.SetUniform("shadowMap", 0);
 
     quadDepthProgram.SetUniform("gaussFilter", false);
@@ -506,23 +513,26 @@ void App::setupPointShadowMapBuffer()
     GL_CHECK_ERRORS;
 
     //create cubemap texture
-    glGenTextures(1, &pointShadowMapTexture);
-    GL_CHECK_ERRORS;
-    glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowMapTexture);
-    for (std::uint32_t i = 0; i < 6; ++i) {
-        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT,
-            pointShadowMapWidth, pointShadowMapHeight, 0,
-            GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    pointShadowMapTextures.resize(lightPos.size());
+    for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
+        glGenTextures(1, &pointShadowMapTextures[i]);
+        GL_CHECK_ERRORS;
+        glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowMapTextures[i]);
+        for (std::uint32_t j = 0; j < 6; ++j) {
+            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + j, 0, GL_DEPTH_COMPONENT,
+                pointShadowMapWidth, pointShadowMapHeight, 0,
+                GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+        }
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+        GL_CHECK_ERRORS;
     }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    GL_CHECK_ERRORS;
 
     //attach texture to framebuffer
-    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, pointShadowMapTexture, 0);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, pointShadowMapTextures[0], 0);
     glDrawBuffer(GL_NONE);
     glReadBuffer(GL_NONE);
 
@@ -536,7 +546,7 @@ void App::setupPointShadowMapBuffer()
 
 void App::deletePointShadowMapBuffer()
 {
-    glDeleteTextures(1, &pointShadowMapTexture);
+    glDeleteTextures(lightPos.size(), pointShadowMapTextures.data());
     glDeleteFramebuffers(1, &pointShadowMapFBO);
     GL_CHECK_ERRORS;
 }
@@ -545,36 +555,39 @@ void App::renderPointShadowMap(ShaderProgram& depthProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, pointShadowMapFBO);
 
-    glEnable(GL_DEPTH_TEST);
+    for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
+        glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, pointShadowMapTextures[i], 0);
 
-    glViewport(0, 0, pointShadowMapWidth, pointShadowMapHeight);
-    glClear(GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
 
-    glUseProgram(depthProgram.ProgramObj); //StartUseShader
+        glViewport(0, 0, pointShadowMapWidth, pointShadowMapHeight);
+        glClear(GL_DEPTH_BUFFER_BIT);
 
-    for (std::uint32_t i = 0; i < lightSpaceTransforms.size(); ++i) {
-        depthProgram.SetUniform(
-            "lightSpaceTransforms[" + std::to_string(i) + "]",
-            lightSpaceTransforms[i]
-        );
-    }
-    depthProgram.SetUniform("lightPos", lightPos);
-    depthProgram.SetUniform("farPlane", farPlane);
+        glUseProgram(depthProgram.ProgramObj); //StartUseShader
 
-    for (std::size_t i = 0; i < scene.size(); ++i) {
-        if (duplicatedModels.count(i)) {
-            //TODO: use instancing here
-            for (auto& model : duplicatedModels[i]) {
-                depthProgram.SetUniform("model", model);
-                scene[i]->Draw();
-            }
-        } else {
-            depthProgram.SetUniform("model", scene[i]->model);
-            scene[i]->Draw();
+        for (std::uint32_t j = 0; j < lightSpaceTransforms[i].size(); ++j) {
+            depthProgram.SetUniform(
+                "lightSpaceTransforms[" + std::to_string(j) + "]",
+                lightSpaceTransforms[i][j]);
         }
-    }
+        depthProgram.SetUniform("lightPos", lightPos[i]);
+        depthProgram.SetUniform("farPlane", farPlane);
 
-    glUseProgram(0); //StopUseShader
+        for (std::size_t j = 0; j < scene.size(); ++j) {
+            if (duplicatedModels.count(j)) {
+                //TODO: use instancing here
+                for (auto& model : duplicatedModels[j]) {
+                    depthProgram.SetUniform("model", model);
+                    scene[j]->Draw();
+                }
+            } else {
+                depthProgram.SetUniform("model", scene[j]->model);
+                scene[j]->Draw();
+            }
+        }
+
+        glUseProgram(0); //StopUseShader
+    }
 }
 
 //TODO: Move this to Mesh.cpp
@@ -653,29 +666,6 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
 
     lightningProgram.SetUniform("visualizeNormalsWithColor", state.renderingMode == RenderingMode::NORMALS_COLOR);
 
-    //define point light sources positions
-    std::vector<glm::vec3> pointLightPositions = {
-        lightPos
-    };
-    std::vector<glm::vec3> colors = {
-        glm::vec3(1.0f)
-    };
-
-    //set light sources
-    for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
-        std::string idx = std::to_string(i);
-        //set point light source
-        glm::vec4 lightPos = view * glm::vec4(pointLightPositions[i], 1.0f);
-        lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPos));
-        lightningProgram.SetUniform("pointLights[" + idx + "].positionWorldSpace", pointLightPositions[i]);
-        lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.3f * colors[i]);
-        lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.8f * colors[i]);
-        lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(1.0f));
-        lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
-        lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0014f);
-        lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000007f);
-    }
-
     //set spotlight source
     lightningProgram.SetUniform("spotlightOn", state.isFlashlightOn);
     lightningProgram.SetUniform("spotLight.pointLight.position", glm::vec3(0.0f));
@@ -695,19 +685,35 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
     lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.3f));
     lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.8f));
     lightningProgram.SetUniform("dirLight.specular", glm::vec3(1.0f));
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, shadowMapTextures[0]);
+    lightningProgram.SetUniform("dirLight.shadowMap", 3);
 
     lightningProgram.SetUniform("view", view);
     lightningProgram.SetUniform("projection", projection);
     lightningProgram.SetUniform("lightSpaceMatrix", lightSpaceMatrix);
 
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, shadowMapTextures[2]);
-    lightningProgram.SetUniform("shadowMap", 3);
-
-    glActiveTexture(GL_TEXTURE4);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowMapTexture);
-    lightningProgram.SetUniform("pointShadowMap", 4);
+    //set light sources
     lightningProgram.SetUniform("farPlane", farPlane);
+    for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
+        std::string idx = std::to_string(i);
+        //set point light source
+        glm::vec4 lightPosView = view * glm::vec4(lightPos[i], 1.0f);
+        lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPosView));
+        lightningProgram.SetUniform("pointLights[" + idx + "].positionWorldSpace", lightPos[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.3f * lightColors[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.8f * lightColors[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(1.0f));
+        lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
+        lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0007f);
+        lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000004f);
+        glActiveTexture(GL_TEXTURE0 + i + 4);
+        GL_CHECK_ERRORS;
+        glBindTexture(GL_TEXTURE_CUBE_MAP, pointShadowMapTextures[i]);
+        GL_CHECK_ERRORS;
+        lightningProgram.SetUniform("pointLights[" + idx + "].pointShadowMap", static_cast<int>(4 + i));
+        GL_CHECK_ERRORS;
+    }
 
     for (std::size_t i = 0; i < 2; ++i) {
         if (i == 0) {
@@ -751,17 +757,17 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
     }
 
     glUseProgram(sourceProgram.ProgramObj); //StartUseShader
-    for (std::size_t i = 0; i < pointLightPositions.size(); ++i) {
+    for (std::size_t i = 0; i < lightPos.size(); ++i) {
         //model
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, pointLightPositions[i]);
+        model = glm::translate(model, lightPos[i]);
         model = glm::scale(model, glm::vec3(10.0f));
         //set uniforms with transforms
         sourceProgram.SetUniform("model", model);
         sourceProgram.SetUniform("view", view);
         sourceProgram.SetUniform("projection", projection);
         //color
-        sourceProgram.SetUniform("lightColor", colors[i]);
+        sourceProgram.SetUniform("lightColor", lightColors[i]);
         scene[lightIdx]->Draw();
     }
 

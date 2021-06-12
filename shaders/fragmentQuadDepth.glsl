@@ -11,11 +11,11 @@ uniform sampler2D shadowMap;
 uniform bool direction;
 uniform bool gaussFilter;
 
-uniform float offset[3] = float[](0.0, 1.3846153846, 3.2307692308);
-uniform float weight[3] = float[](0.2270270270, 0.3162162162, 0.0702702703);
-
 void main()
 {
+    float offset[3] = float[](0.0, 1.3846153846, 3.2307692308);
+    float weight[3] = float[](0.2270270270, 0.3162162162, 0.0702702703);
+
     vec2 depth = texture(shadowMap, fsIn.texCoords).rg;
     if (gaussFilter) {
         depth *= weight[0];
