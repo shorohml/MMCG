@@ -13,6 +13,7 @@ private:
     pointerType data;
     int width, height, nrChannels;
     GLuint textureID;
+    GLuint format;
 
     pointerType loadImg(const std::string& path);
 
@@ -36,5 +37,10 @@ public:
     GLuint GetTextureID() const
     {
         return textureID;
+    }
+
+    GLuint getFormat() const
+    {
+        return format;
     }
 };

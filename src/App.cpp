@@ -43,9 +43,9 @@ App::App(const std::string& pathToConfig)
     farPlane = 1500.0f;
     lightPos = std::vector<glm::vec3>(
         { glm::vec3(-619.532f, 155.27f, 144.924f),
-            glm::vec3(485.423f, 163.438f, 142.195f) });
-    // glm::vec3(-1325.59f, 764.256f, -531.42f),
-    // glm::vec3(-1327.28f, 772.936f, 483.289f) });
+            glm::vec3(485.423f, 163.438f, 142.195f),
+            glm::vec3(-1325.59f, 764.256f, -531.42f),
+            glm::vec3(-1327.28f, 772.936f, 483.289f) });
     lightColors = std::vector<glm::vec3>(lightPos.size(), glm::vec3(1.0f));
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
     for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
@@ -250,9 +250,9 @@ void App::loadModels()
         materials,
         textures);
     //don't unify flagpoles so we can use them separately later
-    for (auto& material : materials) {
-        if (material.second.name == std::string("floor")) {
-            std::cout << material.second.shininess << std::endl;
+    for (std::uint32_t i = 0; i < scene.size(); ++i) {
+        if (materials[scene[i]->matId].name == std::string("flagpole")) {
+            scene[i]->isStatic = false;
         }
     }
     scene = unifyStaticMeshes(

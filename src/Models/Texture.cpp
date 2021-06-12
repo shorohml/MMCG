@@ -37,13 +37,15 @@ void Texture::GLLoad()
     GL_CHECK_ERRORS;
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     GL_CHECK_ERRORS;
-    GLint format;
     switch (nrChannels) {
     case 1:
         format = GL_RED;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_RED);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
         break;
     case 2:
         format = GL_RG;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
         break;
     case 3:
         format = GL_RGB;
