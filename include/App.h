@@ -75,6 +75,7 @@ private:
     std::string shadersPath;
 
     //color buffer
+    //TODO: move this to separate class
     GLuint colorBufferFBO;
     GLuint colorBufferRBO;
     std::vector<GLuint> colorBufferTextures;
@@ -90,8 +91,8 @@ private:
     GLuint shadowMapFBO;
     GLuint shadowMapRBO;
     std::vector<GLuint> shadowMapTextures;
-    const uint32_t shadowMapWidth = 4096;
-    const uint32_t shadowMapHeight = 4096;
+    const uint32_t shadowMapWidth = 2048;
+    const uint32_t shadowMapHeight = 2048;
     glm::vec3 lightDir;
     glm::mat4 lightSpaceMatrix;
     void setupShadowMapBuffer();

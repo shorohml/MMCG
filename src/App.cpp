@@ -29,12 +29,12 @@ App::App(const std::string& pathToConfig)
         pos + lightDir,
         glm::vec3(0.0f, 0.0f, -1.0f));
     glm::mat4 orthoProjection = glm::ortho(
-        -2500.0f,
-        2500.0f,
-        -1700.0f,
-        1700.0f,
+        -1900.0f,
+        2100.0f,
+        -1100.0f,
+        1500.0f,
         0.0f,
-        3000.0f);
+        2500.0f);
     lightSpaceMatrix = orthoProjection * lightView;
 
     //setup point light source for shadow mapping
@@ -313,13 +313,13 @@ void App::setupShadowMapBuffer()
         GL_CHECK_ERRORS;
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RG32F, shadowMapWidth, shadowMapHeight, 0, GL_RG, GL_FLOAT, nullptr);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         GL_CHECK_ERRORS;
     }
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, shadowMapTextures[0], 0);
@@ -609,30 +609,23 @@ void App::setupColorBuffer()
     for (std::uint32_t i = 0; i < 2; ++i) {
         glGenTextures(1, &colorBufferTextures[i]);
         GL_CHECK_ERRORS;
-        glBindTexture(GL_TEXTURE_2D, colorBufferTextures[i]);
+        glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, colorBufferTextures[i]);
         GL_CHECK_ERRORS;
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, config["width"], config["height"], 0, GL_RGB, GL_FLOAT, nullptr);
+        glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 4, GL_RGB16F, config["width"], config["height"], GL_TRUE);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-        GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-        GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        GL_CHECK_ERRORS;
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBufferTextures[i], 0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D_MULTISAMPLE, colorBufferTextures[i], 0);
         GL_CHECK_ERRORS;
     }
     GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
     glDrawBuffers(2, attachments);
+    glReadBuffer(GL_COLOR_ATTACHMENT1);
 
     //create renderbuffer for depth and stencil buffers and attach it to the framebuffer
     glGenRenderbuffers(1, &colorBufferRBO);
     GL_CHECK_ERRORS;
     glBindRenderbuffer(GL_RENDERBUFFER, colorBufferRBO);
     GL_CHECK_ERRORS;
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, config["width"], config["height"]);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, 4, GL_DEPTH24_STENCIL8, config["width"], config["height"]);
     GL_CHECK_ERRORS;
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, colorBufferRBO);
     GL_CHECK_ERRORS;
@@ -653,15 +646,15 @@ void App::setupColorBuffer()
         GL_CHECK_ERRORS;
         glBindTexture(GL_TEXTURE_2D, pongTextures[i]);
         GL_CHECK_ERRORS;
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, config["width"], config["height"], 0, GL_RGB, GL_FLOAT, nullptr);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, config["width"], config["height"], 0, GL_RGB, GL_FLOAT, nullptr);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         GL_CHECK_ERRORS;
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         GL_CHECK_ERRORS;
     }
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[0], 0);
@@ -837,6 +830,16 @@ void App::renderScene(
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0); //StoptUseShader
 
+    //blit from multisampled texture
+    glReadBuffer(GL_COLOR_ATTACHMENT1);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, pongFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[0], 0);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, colorBufferFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pongFBO);
+    glBlitFramebuffer(0, 0, config["width"], config["height"], 0, 0, config["width"], config["height"], GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
     //------------------------------------------------------------------
     //Gaussian smoothing for bloom effect
     //------------------------------------------------------------------
@@ -844,35 +847,43 @@ void App::renderScene(
     glUseProgram(quadColorProgram.ProgramObj); //StartUseShader
     glDisable(GL_DEPTH_TEST);
 
-    for (std::uint32_t i = 0; i < 5; ++i) {
+    glActiveTexture(GL_TEXTURE0);
+    glBindVertexArray(quadVAO);
+    for (std::uint32_t i = 0; i < 4; ++i) {
         //x-axis
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[0], 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, i == 0 ? colorBufferTextures[1] : pongTextures[1]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[1], 0);
+        glBindTexture(GL_TEXTURE_2D, pongTextures[0]);
         quadColorProgram.SetUniform("colorBuffer", 0);
         quadColorProgram.SetUniform("gaussFilter", true);
         quadColorProgram.SetUniform("direction", true);
         quadColorProgram.SetUniform("addBloom", false);
-        glBindVertexArray(quadVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-        glBindVertexArray(0);
 
         //y-axis
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[1], 0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, pongTextures[0]);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[0], 0);
+        glBindTexture(GL_TEXTURE_2D, pongTextures[1]);
         quadColorProgram.SetUniform("direction", false);
-        glBindVertexArray(quadVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-        glBindVertexArray(0);
     }
 
     glBindTexture(GL_TEXTURE_2D, 0);
+    glBindVertexArray(0);
     glUseProgram(0); //StoptUseShader
 }
 
 void App::visualizeScene(ShaderProgram& quadColorProgram)
 {
+    //blit from multisampled texture
+    glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);  
+    glReadBuffer(GL_COLOR_ATTACHMENT0);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, pongFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[1], 0);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, colorBufferFBO);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pongFBO);
+    glBlitFramebuffer(0, 0, config["width"], config["height"], 0, 0, config["width"], config["height"], GL_COLOR_BUFFER_BIT, GL_NEAREST);    
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     //disable depth testing
@@ -881,9 +892,9 @@ void App::visualizeScene(ShaderProgram& quadColorProgram)
     glUseProgram(quadColorProgram.ProgramObj); //StartUseShader
 
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, colorBufferTextures[0]);
-    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, pongTextures[1]);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, pongTextures[0]);
     quadColorProgram.SetUniform("colorBuffer", 0);
     quadColorProgram.SetUniform("bloomBuffer", 1);
     quadColorProgram.SetUniform("gaussFilter", false);
@@ -893,7 +904,6 @@ void App::visualizeScene(ShaderProgram& quadColorProgram)
     glBindVertexArray(quadVAO);
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
-
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0); //StopUseShader
 }
