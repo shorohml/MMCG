@@ -9,6 +9,9 @@ App::App(const std::string& pathToConfig)
     : sideSplit(2)
 {
     std::ifstream input(pathToConfig);
+    if (!input.good()) {
+        throw std::runtime_error("Failed to load config");
+    }
     input >> config;
 
     //setup initial state
@@ -252,6 +255,9 @@ void App::loadModels()
         scene,
         materials,
         textures);
+    if (scene.size() == 0) {
+        throw std::runtime_error("Empty scene, check that git lfs is installed correctly and do 'git lfs pull'");
+    }
     //don't unify flagpoles so we can use them separately later
     for (std::uint32_t i = 0; i < scene.size(); ++i) {
         if (materials[scene[i]->matId].name == std::string("flagpole")) {
@@ -1129,7 +1135,7 @@ void App::mainLoop()
         //render shadow map to shadowMapTexture
         renderShadowMap(depthProgram, quadDepthProgram);
 
-        // visualize shadow map
+        //visualize shadow map
         if (state.renderingMode == RenderingMode::SHADOW_MAP) {
             //draw texture with shadow map to quad
             visualizeShadowMap(quadDepthProgram);
