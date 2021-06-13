@@ -15,12 +15,9 @@
 ## Сборка проекта
 
 1. Установить [Git LFS](https://git-lfs.github.com/)
+2. Склонировать репозиторий
 ```
-git lfs install
-```
-2. Склонировать репозиторий 
-```
-git clone --recurse-submodules git@github.com:shorohml/MMCG.git
+git clone --recurse-submodules git@github.com:shorohml/MMCG.git && cd MMCG
 ```
 или
 ```
