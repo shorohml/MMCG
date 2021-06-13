@@ -1,4 +1,6 @@
 #version 330 core
+layout (location = 0) out vec4 FragColor;
+layout (location = 1) out vec4 BrightColor;
 
 struct Material {
     vec3 ambient;
@@ -50,7 +52,7 @@ struct SpotLight {
 };
 
 //light sources
-#define NR_POINT_LIGHTS 4
+#define NR_POINT_LIGHTS 6
 uniform PointLight pointLights[NR_POINT_LIGHTS];
 uniform DirLight dirLight;
 uniform SpotLight spotLight;
@@ -71,8 +73,6 @@ in VS_OUT
     mat3 TBN;
 }
 fsIn;
-
-out vec4 FragColor;
 
 vec3 calcDiffuse(
     vec3 lightDir, //direction from fragment to the light source (normalized)
@@ -123,7 +123,8 @@ float calcDirShadowVSM(DirLight light, vec4 fragPosLightSpace, vec3 normal, vec3
     vec2 moments = texture(light.shadowMap, vec2(projCoords.xy)).rg;
     float sigma2 = moments.g - moments.r * moments.r;
     //compute proba
-    float bias = max(0.002 * (1.0 - dot(normal, lightDir)), 0.002);
+    // float bias = max(0.01 * (1.0 - dot(normal, lightDir)), 0.01);
+    float bias = 0.05;
     float diff = projCoords.z - bias - moments.r;
     float pmax = sigma2 / (sigma2 + diff * diff);
     return projCoords.z - bias <= moments.r ? 1.0 : pmax;
@@ -325,4 +326,11 @@ void main()
     }
 
     FragColor = vec4(color, 1.0);
+    float brightness = dot(FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    if (brightness > 0.9) {
+        BrightColor = vec4(FragColor.rgb, 1.0);
+    }
+    else {
+        BrightColor = vec4(0.0, 0.0, 0.0, 1.0);
+    }
 }

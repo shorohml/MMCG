@@ -77,10 +77,13 @@ private:
     //color buffer
     GLuint colorBufferFBO;
     GLuint colorBufferRBO;
-    GLuint colorBufferTexture;
+    std::vector<GLuint> colorBufferTextures;
+    GLuint pongFBO;
+    GLuint pongRBO;
+    std::vector<GLuint> pongTextures;
     void setupColorBuffer();
     void deleteColorBuffer();
-    void renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProgram);
+    void renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProgram, ShaderProgram& quadColorProgram);
 
     //shadow map
     //TODO: move this to separate class
@@ -97,7 +100,7 @@ private:
 
     //point shadow map
     //TODO: move this to separate class
-    //TODO: process transparent objects corerctly
+    //TODO: process transparent objects correctly
     GLuint pointShadowMapFBO;
     std::vector<GLuint> pointShadowMapTextures;
     const uint32_t pointShadowMapWidth = 1024;

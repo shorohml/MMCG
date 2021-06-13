@@ -3,6 +3,7 @@
 #include "ShaderProgram.h"
 #include "Simulation/Cloth.h"
 #include <map>
+#include <sstream>
 
 App::App(const std::string& pathToConfig)
     : sideSplit(2)
@@ -44,8 +45,10 @@ App::App(const std::string& pathToConfig)
     lightPos = std::vector<glm::vec3>(
         { glm::vec3(-619.532f, 155.27f, 144.924f),
             glm::vec3(485.423f, 163.438f, 142.195f),
-            glm::vec3(-1325.59f, 764.256f, -531.42f),
-            glm::vec3(-1327.28f, 772.936f, 483.289f) });
+            glm::vec3(-1325.59f, 750.0f, -531.42f),
+            glm::vec3(-1327.28f, 750.0f, 483.289f),
+            glm::vec3(1261.95f, 750.0f, 530.08f),
+            glm::vec3(1253.91f, 750.0f, -601.096f)});
     lightColors = std::vector<glm::vec3>(lightPos.size(), glm::vec3(1.0f));
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
     for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
@@ -293,63 +296,6 @@ void App::loadModels()
     std::cout << std::endl;
 }
 
-void App::setupColorBuffer()
-{
-    glGenFramebuffers(1, &colorBufferFBO);
-    GL_CHECK_ERRORS;
-    glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
-    GL_CHECK_ERRORS;
-
-    //create texture for color buffer and attach it to the framebuffer
-    glGenTextures(1, &colorBufferTexture);
-    GL_CHECK_ERRORS;
-    glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
-    GL_CHECK_ERRORS;
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, config["width"], config["height"], 0, GL_RGB, GL_FLOAT, nullptr);
-    GL_CHECK_ERRORS;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
-    GL_CHECK_ERRORS;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
-    GL_CHECK_ERRORS;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    GL_CHECK_ERRORS;
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    GL_CHECK_ERRORS;
-    glBindTexture(GL_TEXTURE_2D, 0);
-    GL_CHECK_ERRORS;
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBufferTexture, 0);
-    GL_CHECK_ERRORS;
-
-    //create renderbuffer for depth and stencil buffers and attach it to the framebuffer
-    glGenRenderbuffers(1, &colorBufferRBO);
-    GL_CHECK_ERRORS;
-    glBindRenderbuffer(GL_RENDERBUFFER, colorBufferRBO);
-    GL_CHECK_ERRORS;
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, config["width"], config["height"]);
-    GL_CHECK_ERRORS;
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, colorBufferRBO);
-    GL_CHECK_ERRORS;
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-        throw std::runtime_error("Couldn't create framebuffer");
-    }
-
-    //bind default framebuffer
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    GL_CHECK_ERRORS;
-    glBindRenderbuffer(GL_RENDERBUFFER, 0);
-    GL_CHECK_ERRORS;
-}
-
-void App::deleteColorBuffer()
-{
-    glDeleteTextures(1, &colorBufferTexture);
-    GL_CHECK_ERRORS;
-    glDeleteRenderbuffers(1, &colorBufferRBO);
-    GL_CHECK_ERRORS;
-    glDeleteFramebuffers(1, &colorBufferFBO);
-    GL_CHECK_ERRORS;
-}
-
 void App::setupShadowMapBuffer()
 {
     glGenFramebuffers(1, &shadowMapFBO);
@@ -488,8 +434,6 @@ void App::visualizeShadowMap(ShaderProgram& quadDepthProgram)
     glDisable(GL_DEPTH_TEST);
 
     glViewport(0, 0, config["width"], config["height"]);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
 
     glUseProgram(quadDepthProgram.ProgramObj); //StartUseShader
 
@@ -652,7 +596,116 @@ void App::deleteQuad()
     glDeleteBuffers(1, &quadEBO);
 }
 
-void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProgram)
+void App::setupColorBuffer()
+{
+    glGenFramebuffers(1, &colorBufferFBO);
+    GL_CHECK_ERRORS;
+    glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
+    GL_CHECK_ERRORS;
+
+    //create texture for color buffer and attach it to the framebuffer
+    //need two textures for bloom effect
+    colorBufferTextures = std::vector<GLuint>(2);
+    for (std::uint32_t i = 0; i < 2; ++i) {
+        glGenTextures(1, &colorBufferTextures[i]);
+        GL_CHECK_ERRORS;
+        glBindTexture(GL_TEXTURE_2D, colorBufferTextures[i]);
+        GL_CHECK_ERRORS;
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, config["width"], config["height"], 0, GL_RGB, GL_FLOAT, nullptr);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        GL_CHECK_ERRORS;
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBufferTextures[i], 0);
+        GL_CHECK_ERRORS;
+    }
+    GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+    glDrawBuffers(2, attachments);
+
+    //create renderbuffer for depth and stencil buffers and attach it to the framebuffer
+    glGenRenderbuffers(1, &colorBufferRBO);
+    GL_CHECK_ERRORS;
+    glBindRenderbuffer(GL_RENDERBUFFER, colorBufferRBO);
+    GL_CHECK_ERRORS;
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, config["width"], config["height"]);
+    GL_CHECK_ERRORS;
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, colorBufferRBO);
+    GL_CHECK_ERRORS;
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error("Couldn't create framebuffer");
+    }
+
+    glGenFramebuffers(1, &pongFBO);
+    GL_CHECK_ERRORS;
+    glBindFramebuffer(GL_FRAMEBUFFER, pongFBO);
+    GL_CHECK_ERRORS;
+
+    //generate textures for depth map (we need three for filtering - original, x-axis pass, y-axis pass)
+    //and attach it to framebuffer
+    pongTextures = std::vector<GLuint>(2);
+    for (std::uint32_t i = 0; i < 2; ++i) {
+        glGenTextures(1, &pongTextures[i]);
+        GL_CHECK_ERRORS;
+        glBindTexture(GL_TEXTURE_2D, pongTextures[i]);
+        GL_CHECK_ERRORS;
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, config["width"], config["height"], 0, GL_RGB, GL_FLOAT, nullptr);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        GL_CHECK_ERRORS;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        GL_CHECK_ERRORS;
+    }
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[0], 0);
+    GL_CHECK_ERRORS;
+
+    glGenRenderbuffers(1, &pongRBO);
+    GL_CHECK_ERRORS;
+    glBindRenderbuffer(GL_RENDERBUFFER, pongRBO);
+    GL_CHECK_ERRORS;
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT32, config["width"], config["height"]);
+    GL_CHECK_ERRORS;
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, pongRBO);
+    GL_CHECK_ERRORS;
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        throw std::runtime_error("Couldn't create framebuffer");
+    }
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    GL_CHECK_ERRORS;
+    glBindRenderbuffer(GL_RENDERBUFFER, 0);
+    GL_CHECK_ERRORS;
+}
+
+void App::deleteColorBuffer()
+{
+    glDeleteTextures(colorBufferTextures.size(), colorBufferTextures.data());
+    GL_CHECK_ERRORS;
+    glDeleteRenderbuffers(1, &colorBufferRBO);
+    GL_CHECK_ERRORS;
+    glDeleteFramebuffers(1, &colorBufferFBO);
+    GL_CHECK_ERRORS;
+    glDeleteTextures(pongTextures.size(), pongTextures.data());
+    GL_CHECK_ERRORS;
+    glDeleteFramebuffers(1, &pongRBO);
+    GL_CHECK_ERRORS;
+    glDeleteFramebuffers(1, &pongFBO);
+    GL_CHECK_ERRORS;
+}
+
+void App::renderScene(
+    ShaderProgram& lightningProgram,
+    ShaderProgram& sourceProgram,
+    ShaderProgram& quadColorProgram)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
 
@@ -660,8 +713,11 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
 
     //clear screen and then fill it with color
     glViewport(0, 0, config["width"], config["height"]);
-    glClearColor(0.53f, 0.81f, 0.92f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    static const float color0[] = { 0.53f, 0.81f, 0.92f, 1.0f };
+    glClearBufferfv(GL_COLOR, 0, color0);
+    static const float color1[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    glClearBufferfv(GL_COLOR, 1, color1);
+    glClear(GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(lightningProgram.ProgramObj); //StartUseShader
 
@@ -690,8 +746,8 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
     glm::vec4 direction = glm::vec4(lightDir, 0.0f);
     lightningProgram.SetUniform("dirLight.direction", glm::vec3(view * direction));
     lightningProgram.SetUniform("dirLight.ambient", glm::vec3(0.3f));
-    lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.8f));
-    lightningProgram.SetUniform("dirLight.specular", glm::vec3(1.0f));
+    lightningProgram.SetUniform("dirLight.diffuse", glm::vec3(0.9f));
+    lightningProgram.SetUniform("dirLight.specular", glm::vec3(0.9f));
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, shadowMapTextures[0]);
     lightningProgram.SetUniform("dirLight.shadowMap", 3);
@@ -708,9 +764,9 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
         glm::vec4 lightPosView = view * glm::vec4(lightPos[i], 1.0f);
         lightningProgram.SetUniform("pointLights[" + idx + "].position", glm::vec3(lightPosView));
         lightningProgram.SetUniform("pointLights[" + idx + "].positionWorldSpace", lightPos[i]);
-        lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.3f * lightColors[i]);
+        lightningProgram.SetUniform("pointLights[" + idx + "].ambient", 0.1f * lightColors[i]);
         lightningProgram.SetUniform("pointLights[" + idx + "].diffuse", 0.8f * lightColors[i]);
-        lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(1.0f));
+        lightningProgram.SetUniform("pointLights[" + idx + "].specular", glm::vec3(0.8f));
         lightningProgram.SetUniform("pointLights[" + idx + "].constant", 1.0f);
         lightningProgram.SetUniform("pointLights[" + idx + "].linear", 0.0007f);
         lightningProgram.SetUniform("pointLights[" + idx + "].quadratic", 0.000004f);
@@ -780,6 +836,39 @@ void App::renderScene(ShaderProgram& lightningProgram, ShaderProgram& sourceProg
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0); //StoptUseShader
+
+    //------------------------------------------------------------------
+    //Gaussian smoothing for bloom effect
+    //------------------------------------------------------------------
+    glBindFramebuffer(GL_FRAMEBUFFER, pongFBO);
+    glUseProgram(quadColorProgram.ProgramObj); //StartUseShader
+    glDisable(GL_DEPTH_TEST);
+
+    for (std::uint32_t i = 0; i < 5; ++i) {
+        //x-axis
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[0], 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, i == 0 ? colorBufferTextures[1] : pongTextures[1]);
+        quadColorProgram.SetUniform("colorBuffer", 0);
+        quadColorProgram.SetUniform("gaussFilter", true);
+        quadColorProgram.SetUniform("direction", true);
+        quadColorProgram.SetUniform("addBloom", false);
+        glBindVertexArray(quadVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        glBindVertexArray(0);
+
+        //y-axis
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, pongTextures[1], 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, pongTextures[0]);
+        quadColorProgram.SetUniform("direction", false);
+        glBindVertexArray(quadVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        glBindVertexArray(0);
+    }
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0); //StoptUseShader
 }
 
 void App::visualizeScene(ShaderProgram& quadColorProgram)
@@ -789,22 +878,21 @@ void App::visualizeScene(ShaderProgram& quadColorProgram)
     //disable depth testing
     glDisable(GL_DEPTH_TEST);
 
-    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
     glUseProgram(quadColorProgram.ProgramObj); //StartUseShader
 
-    //set color bufer texture
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
+    glBindTexture(GL_TEXTURE_2D, colorBufferTextures[0]);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, pongTextures[1]);
     quadColorProgram.SetUniform("colorBuffer", 0);
+    quadColorProgram.SetUniform("bloomBuffer", 1);
+    quadColorProgram.SetUniform("gaussFilter", false);
+    quadColorProgram.SetUniform("direction", false);
+    quadColorProgram.SetUniform("addBloom", true);
 
     glBindVertexArray(quadVAO);
-    GL_CHECK_ERRORS;
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-    GL_CHECK_ERRORS;
     glBindVertexArray(0);
-    GL_CHECK_ERRORS;
 
     glBindTexture(GL_TEXTURE_2D, 0);
     glUseProgram(0); //StopUseShader
@@ -857,6 +945,16 @@ glm::mat4 createModelMat(glm::dvec3& orig, std::shared_ptr<Mesh>& mesh)
     res[3][1] = diff[1];
     res[3][2] = diff[2];
     return res;
+}
+
+//from https://stackoverflow.com/questions/16605967/set-precision-of-stdto-string-when-converting-floating-point-values
+template <typename T>
+std::string to_string_with_precision(const T a_value, const int n = 6)
+{
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
 }
 }
 
@@ -990,7 +1088,7 @@ void App::mainLoop()
         deltaSum += state.deltaTime;
         if (deltaSum >= printEvery) {
             float fps = static_cast<float>(frameCount) / deltaSum;
-            std::string title = std::string(config["name"]) + " FPS: " + std::to_string(fps);
+            std::string title = std::string(config["name"]) + " FPS: " + to_string_with_precision(fps, 1);
             glfwSetWindowTitle(window, title.c_str());
             deltaSum = 0.0f;
             frameCount = 0;
@@ -1033,7 +1131,7 @@ void App::mainLoop()
         renderPointShadowMap(pointDepthPorgram);
 
         //render scene to colorBufferTexture
-        renderScene(lightningProgram, sourceProgram);
+        renderScene(lightningProgram, sourceProgram, quadColorProgram);
 
         //draw texture with rendered scene to quad
         if (state.filling == 0) {
