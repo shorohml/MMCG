@@ -44,14 +44,14 @@ App::App(const std::string& pathToConfig)
     //TODO: move this to some separate method for scene setup
     float aspect = static_cast<float>(pointShadowMapWidth) / static_cast<float>(pointShadowMapHeight);
     nearPlane = 1.0f;
-    farPlane = 1500.0f;
+    farPlane = 2000.0f;
     lightPos = std::vector<glm::vec3>(
         { glm::vec3(-619.532f, 155.27f, 144.924f),
             glm::vec3(485.423f, 163.438f, 142.195f),
             glm::vec3(-1325.59f, 750.0f, -531.42f),
             glm::vec3(-1327.28f, 750.0f, 483.289f),
             glm::vec3(1261.95f, 750.0f, 530.08f),
-            glm::vec3(1253.91f, 750.0f, -601.096f)});
+            glm::vec3(1253.91f, 750.0f, -601.096f) });
     lightColors = std::vector<glm::vec3>(lightPos.size(), glm::vec3(1.0f));
     glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, nearPlane, farPlane);
     for (std::uint32_t i = 0; i < lightPos.size(); ++i) {
@@ -880,7 +880,7 @@ void App::renderScene(
 void App::visualizeScene(ShaderProgram& quadColorProgram)
 {
     //blit from multisampled texture
-    glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);  
+    glBindFramebuffer(GL_FRAMEBUFFER, colorBufferFBO);
     glReadBuffer(GL_COLOR_ATTACHMENT0);
 
     glBindFramebuffer(GL_FRAMEBUFFER, pongFBO);
@@ -888,7 +888,7 @@ void App::visualizeScene(ShaderProgram& quadColorProgram)
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, colorBufferFBO);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, pongFBO);
-    glBlitFramebuffer(0, 0, config["width"], config["height"], 0, 0, config["width"], config["height"], GL_COLOR_BUFFER_BIT, GL_NEAREST);    
+    glBlitFramebuffer(0, 0, config["width"], config["height"], 0, 0, config["width"], config["height"], GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 

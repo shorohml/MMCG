@@ -209,7 +209,7 @@ void ShaderProgram::SetUniform(const std::string& location, const glm::mat4& val
     glUniformMatrix4fv(uniformLocation, 1, GL_FALSE, glm::value_ptr(value));
 }
 
-void ShaderProgram::SetUniform(const std::string& location, const glm::vec3 &value) const
+void ShaderProgram::SetUniform(const std::string& location, const glm::vec3& value) const
 {
     GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
     if (uniformLocation == -1) {
@@ -219,7 +219,7 @@ void ShaderProgram::SetUniform(const std::string& location, const glm::vec3 &val
     glUniform3fv(uniformLocation, 1, glm::value_ptr(value));
 }
 
-void ShaderProgram::SetUniform(const std::string& location, const glm::vec4 &value) const
+void ShaderProgram::SetUniform(const std::string& location, const glm::vec4& value) const
 {
     GLint uniformLocation = glGetUniformLocation(ProgramObj, location.c_str());
     if (uniformLocation == -1) {
